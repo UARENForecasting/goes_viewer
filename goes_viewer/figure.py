@@ -144,7 +144,7 @@ def create_bokeh_figure(
     )
 
     pt_source = AjaxDataSource(
-        data_url=base_url + "/metadata.json",
+        data_url="metadata.json",
         polling_interval=int(1e5),
         adapter=pt_adapter,
     )
@@ -232,7 +232,7 @@ def render_html():
     env = Environment(loader=PackageLoader("goes_viewer", "templates"))
     template = env.get_template("index.html")
     html = file_html(doc, CDN, "GOES Image Viewer", template)
-    with open(config.FILENAME, "w") as f:
+    with open(config.BASE_DIR / config.FILENAME, "w") as f:
         f.write(html)
 
 
