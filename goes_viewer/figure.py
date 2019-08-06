@@ -82,6 +82,12 @@ def create_bokeh_figure(
         name="map_fig",
         tooltips=[("Site", "@name")],
     )
+    map_fig.xaxis.axis_label = (
+        "Data from https://registry.opendata.aws/noaa-goes/. Map tiles from Stamen Design. "  # NOQA
+        "Plot generated with Bokeh by UA HAS Renewable Power Forecasting Group."
+    )
+    map_fig.xaxis.axis_label_text_font_size = "7pt"
+    map_fig.xaxis.axis_line_alpha = 0
 
     slider = Slider(
         title="GOES Image",
@@ -144,9 +150,7 @@ def create_bokeh_figure(
     )
 
     pt_source = AjaxDataSource(
-        data_url="metadata.json",
-        polling_interval=int(1e5),
-        adapter=pt_adapter,
+        data_url="metadata.json", polling_interval=int(1e5), adapter=pt_adapter
     )
     pt_source.method = "GET"
 
