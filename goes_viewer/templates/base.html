@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="en" class="sticky-footer">
+  <head>
+    {% block head %}
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UA HAS GOES Viewer</title>
+    <!-- Latest icon font stylesheet -->
+    <link rel="stylesheet" href="https://cdn.uadigital.arizona.edu/lib/ua-brand-icons/latest/ua-brand-icons.css">
+    <!-- Compiled and minified UA Bootstrap CSS, icon font not included -->
+    <link rel="stylesheet" href="https://cdn.uadigital.arizona.edu/lib/ua-bootstrap/v1.0.0-beta.4/ua-bootstrap.min.css">
+    {% endblock %}
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    {% block resources %}
+    {% block css_resources %}
+    {{ bokeh_css | indent(8) if bokeh_css }}
+    {% endblock %}
+    {% block js_resources %}
+    {{ bokeh_js | indent(8) if bokeh_js }}
+    {% endblock %}
+    {% endblock %}
+    {% block postamble %}{% endblock %}
+    {% block extra_head %}{% endblock %}
+  </head>
+  <body>
+    {% include "header.html" %}
+    {% block content %}{% endblock %}
+    {% block footer %}
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://cdn.uadigital.arizona.edu/lib/ua-bootstrap/v1.0.0-beta.4/ua-bootstrap.min.js"></script>
+    <footer role="contentinfo" class="bs-footer page-row">
+      <div class="container text-center">
+        <hr>
+        <ul class="footer-links muted list-inline list-unstyled">
+          <li>Built with <li><a href="http://bokeh.pydata.org">Bokeh</a></li>
+          <li>.</li>
+          <li><a href="https://github.com/uarenforecasting/goes_viewer">GitHub</a></li>
+        </ul>
+      </div>
+    </footer>
+    {% endblock %}
+  </body>
+</html>
