@@ -8,3 +8,4 @@ pyproj
 pyresample
 bokeh
 boto3
+requests
