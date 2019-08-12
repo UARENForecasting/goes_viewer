@@ -232,7 +232,8 @@ def create_bokeh_figure(
 
 
 def render_html():
-    doc = create_bokeh_figure(G17_CORNERS, config.LON_LIMITS, config.LAT_LIMITS)
+    doc = create_bokeh_figure(G17_CORNERS, config.LON_LIMITS, config.LAT_LIMITS,
+                              config.FIG_DIR)
     env = Environment(loader=PackageLoader("goes_viewer", "templates"))
     template = env.get_template("index.html")
     html = file_html(doc, CDN, "GOES Image Viewer", template)
