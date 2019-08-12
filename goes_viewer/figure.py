@@ -170,7 +170,7 @@ def create_bokeh_figure(
         args=dict(title=map_fig.title, base_title=title),
         code="""
         var url = cb_obj.data['url'][0]
-        var date = url.split('/').pop().split('_').pop().split('.')[0]
+        var date = new Date(url.split('/').pop().split('_').pop().split('.')[0])
         title.text = base_title + date
         title.change.emit()
         """,
