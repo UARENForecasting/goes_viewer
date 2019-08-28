@@ -1,0 +1,71 @@
+{% from macros import embed %}
+
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .top-marg {
+     margin-top: 32px;
+  }
+</style>
+{% endblock %}
+
+{% block postamble %}
+<style>
+  .top-marg {
+     margin-top: 2em;
+  }
+</style>
+<script type=text/javascript>
+    $(document).keydown(function(event){
+        switch(event.key) {
+        case "ArrowLeft":
+            var ds = Bokeh.documents[0].get_model_by_name('timeslider');
+            if (ds.value > ds.start){
+                ds.value -= 1;
+            };
+            break;
+        case "ArrowRight":
+            var ds = Bokeh.documents[0].get_model_by_name('timeslider');
+            if (ds.value < ds.end){
+                ds.value += 1;
+            };
+            break;
+        default:
+            return;
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div id="header_site">
+  <div class="container">
+    <div class="row">
+      <div class="page-header">
+        <h1>GOES Image Viewer</h1>
+      </div>
+      <hr>
+    </div>
+  </div>
+</div>
+<div class="container" id="content_main">
+  <div class="row">
+    <div class="col-sm-2 col-xs-0"></div>
+    <div class="col-sm-4 col-xs-7">
+      {{ embed(docs[0].roots.timeslider) | indent(10) }}
+    </div>
+    <div class="col-sm-3 col-xs-4">
+      {{ embed(docs[0].roots.play_buttons) | indent(10) }}
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-sm-2 col-xs-0"></div>
+    <div class="col-sm-8 col-xs-10 top-marg">
+      {{ embed(docs[0].roots.map_fig) | indent(10) }}
+    </div>
+    <div class="col-sm-2 col-xs-0"></div>
+  </div>
+</div>
+{{ plot_script | indent(8) }}
+{% endblock %}

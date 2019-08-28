@@ -1,0 +1,10 @@
+xarray
+# netcdf4
+h5netcdf
+s3fs
+numpy
+pillow
+pyproj
+pyresample
+bokeh
+boto3
