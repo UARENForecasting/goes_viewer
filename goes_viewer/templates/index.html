@@ -2,18 +2,16 @@
 
 {% extends "base.html" %}
 
-{% block extra_head %}
-<style>
-  .top-marg {
-     margin-top: 32px;
-  }
-</style>
-{% endblock %}
-
 {% block postamble %}
 <style>
-  .top-marg {
-     margin-top: 2em;
+  .bar-header {
+      color: white;
+      font-weight: bold;
+      line-height: 1.1;
+      font-family: MiloSerifWeb,TimesNewRoman,"Times New Roman",Times,Baskerville,Georgia,serif;
+      margin-top: .9em;
+      margin-bottom: .9em;
+      font-size: 20px;
   }
 </style>
 <script type=text/javascript>
@@ -39,28 +37,8 @@
 {% endblock %}
 
 {% block content %}
-<div id="header_site">
-  <div class="container">
-    <div class="row">
-      <div class="page-header">
-        <h1>GOES Image Viewer</h1>
-      </div>
-      <hr>
-    </div>
-  </div>
-</div>
-<div class="container" id="content_main">
+<div class="container mt-4" id="content_main">
   <div class="row">
-    <div class="well">
-      The image is generated with data from the GOES-W geostationary satellite.
-      Use the toolbar on the right to zoom and move the map, and use the left
-      and right arrow keys to change the image time. The play, stop, and reset
-      buttons may be used to animate the figure. Hovering over a red cross will
-      display the solar power plants at the indicated location.
-    </div>
-  </div>
-  <div class="row">
-    <div class="col-sm-2 col-xs-0"></div>
     <div class="col-sm-4 col-xs-7">
       {{ embed(docs[0].roots.timeslider) | indent(10) }}
     </div>
@@ -69,11 +47,18 @@
     </div>
   </div>
   <div class="row">
-    <div class="col-sm-2 col-xs-0"></div>
-    <div class="col-sm-8 col-xs-10 top-marg">
+    <div class="col mt-2">
       {{ embed(docs[0].roots.map_fig) | indent(10) }}
     </div>
-    <div class="col-sm-2 col-xs-0"></div>
+  </div>
+  <div class="row mt-4">
+    <div class="well">
+      The image is generated with data from the GOES-W geostationary satellite.
+      Use the toolbar on the right to zoom and move the map, and use the left
+      and right arrow keys to change the image time. The play, stop, and reset
+      buttons may be used to animate the figure. Hovering over a red cross will
+      display the solar power plants at the indicated location.
+    </div>
   </div>
 </div>
 {{ plot_script | indent(8) }}
