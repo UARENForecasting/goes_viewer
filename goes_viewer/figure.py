@@ -92,8 +92,8 @@ def create_bokeh_figure(
     slider = Slider(
         title="GOES Image",
         start=0,
-        end=100,
-        value=0,
+        end=1,
+        value=1,
         name="timeslider",
         sizing_mode="scale_width",
     )
@@ -121,12 +121,16 @@ def create_bokeh_figure(
         }
     }
     slider.end = Math.max(pnglen - 1, 1)
-    slider.change.emit()
+    var lasturl = result.url[pnglen - 1]
+    cb_obj.tags = [lasturl]
+    // first run
     if (fig_source.data['url'].length == 0) {
-        fig_source.data['url'][0] = result.url[0]
+        fig_source.data['url'][0] = lasturl
         fig_source.tags = ['']
         fig_source.change.emit()
+        slider.value = slider.end
     }
+    slider.change.emit()
     return result
     """,
     )
@@ -154,17 +158,36 @@ def create_bokeh_figure(
     )
     pt_source.method = "GET"
 
-    callback = CustomJS(
+    slider_callback = CustomJS(
         args=dict(fig_source=fig_source, url_source=url_source),
         code="""
-        if (cb_obj.value < url_source.data['url'].length){
+        if ('url' in url_source.data && cb_obj.value < url_source.data['url'].length){
             var inp_url = url_source.data['url'][cb_obj.value];
             fig_source.data['url'][0] = inp_url;
-            fig_source.tags = [cb_obj.value];
+            fig_source.tags = [inp_url];
             fig_source.change.emit();
+        }
+        if (cb_obj.value == cb_obj.end) {
+            cb_obj.tags = [1]
+        } else {
+            cb_obj.tags = [0]
         }
         """,
     )
+
+    newest_callback = CustomJS(
+        args=dict(fig_source=fig_source, slider=slider),
+        code="""
+        if (slider.tags[0] == 1){
+            if (slider.value != slider.end) {
+                slider.value = slider.end
+                slider.change.emit()
+            }
+            fig_source.data['url'][0] = cb_obj.tags[0]
+            fig_source.tags = [cb_obj.tags[0]];
+            fig_source.change.emit();
+        }
+        """)
 
     title_callback = CustomJS(
         args=dict(title=map_fig.title, base_title=title),
@@ -218,11 +241,12 @@ def create_bokeh_figure(
     map_fig.image_url(
         url="url", global_alpha=image_alpha, source=fig_source, **img_args
     )
-    fig_source.js_on_change("tags", title_callback)
     map_fig.cross(
         x="x", y="y", size=12, fill_alpha=0.9, source=pt_source, color=config.RED
     )
-    slider.js_on_change("value", callback)
+    fig_source.js_on_change("tags", title_callback)
+    slider.js_on_change("value", slider_callback)
+    url_source.js_on_change("tags", newest_callback)
     play_buttons.js_on_change("active", play_callback)
     doc = curdoc()
     for thing in (map_fig, play_buttons, slider):
