@@ -1,6 +1,3 @@
-import os
-
-
 from bokeh.plotting import figure
 from bokeh.models import (
     WMTSTileSource,
@@ -16,12 +13,12 @@ from bokeh.io import curdoc
 from jinja2 import Environment, PackageLoader
 from pyproj import transform
 
-
 from goes_viewer import config
 from goes_viewer.constants import WEB_MERCATOR, G17_CORNERS, DX, DY
 
 
-def compute_image_locations_ranges(corners, range_lon_limits, range_lat_limits):
+def compute_image_locations_ranges(corners, range_lon_limits,
+                                   range_lat_limits):
     xn, yn = transform(
         WEB_MERCATOR.geodetic_crs,
         WEB_MERCATOR,
@@ -58,17 +55,16 @@ STAMEN_TONER = WMTSTileSource(
 
 
 def create_bokeh_figure(
-    corners,
-    lon_limits,
-    lat_limits,
-    base_url="figs/",
-    base_height=800,
-    image_alpha=0.8,
-    title="GOES GeoColor Imagery at ",
+        corners,
+        lon_limits,
+        lat_limits,
+        base_url="figs/",
+        base_height=800,
+        image_alpha=0.8,
+        title="GOES GeoColor Imagery at ",
 ):
     img_args, x_range, y_range, scale = compute_image_locations_ranges(
-        corners, lon_limits, lat_limits
-    )
+        corners, lon_limits, lat_limits)
     map_fig = figure(
         plot_width=int(scale * base_height),
         plot_height=base_height,
@@ -104,16 +100,26 @@ def create_bokeh_figure(
         name="play_buttons",
         sizing_mode="scale_width",
     )
-    fig_source = ColumnDataSource(data=dict(url=[]), name="figsource", id="figsource")
+    fig_source = ColumnDataSource(data=dict(url=[]),
+                                  name="figsource",
+                                  id="figsource")
     adapter = CustomJS(
-        args=dict(
-            slider=slider, fig_source=fig_source, base_url=base_url, title=map_fig.title
-        ),
+        args=dict(slider=slider,
+                  fig_source=fig_source,
+                  base_url=base_url,
+                  title=map_fig.title,
+                  max_images=config.MAX_IMAGES),
         code="""
     const result = {url: []}
     const urls = cb_data.response
-    var pnglen = 0;
-    for (i=0; i<urls.length; i++) {
+    var pnglen = 0
+    var len = urls.length
+    var start = 0
+    if (len > max_images) {
+        start = len - max_images
+    }
+    console.log(start, len)
+    for (i=start; i<len; i++) {
         var name = urls[i]['name'];
         if (name.endsWith('.png')) {
             result.url.push(base_url + name)
@@ -134,14 +140,13 @@ def create_bokeh_figure(
     return result
     """,
     )
-    url_source = AjaxDataSource(
-        data_url=base_url, polling_interval=10000, adapter=adapter
-    )
+    url_source = AjaxDataSource(data_url=base_url,
+                                polling_interval=10000,
+                                adapter=adapter)
     url_source.method = "GET"
     # url_source.if_modified = True
 
-    pt_adapter = CustomJS(
-        code="""
+    pt_adapter = CustomJS(code="""
     const result = {x: [], y: [], name: []}
     const pts = cb_data.response
     for (i=0; i<pts.length; i++) {
@@ -150,12 +155,11 @@ def create_bokeh_figure(
         result.name.push(pts[i]['name'])
     }
     return result
-"""
-    )
+""")
 
-    pt_source = AjaxDataSource(
-        data_url="metadata.json", polling_interval=int(1e5), adapter=pt_adapter
-    )
+    pt_source = AjaxDataSource(data_url="metadata.json",
+                               polling_interval=int(1e5),
+                               adapter=pt_adapter)
     pt_source.method = "GET"
 
     slider_callback = CustomJS(
@@ -175,9 +179,8 @@ def create_bokeh_figure(
         """,
     )
 
-    newest_callback = CustomJS(
-        args=dict(fig_source=fig_source, slider=slider),
-        code="""
+    newest_callback = CustomJS(args=dict(fig_source=fig_source, slider=slider),
+                               code="""
         if (slider.tags[0] == 1){
             if (slider.value != slider.end) {
                 slider.value = slider.end
@@ -238,12 +241,16 @@ def create_bokeh_figure(
     # write metadata for plants to file, serve w/ nginx
     # new goes image triggers lambda to process sns -> sqs -> lambda
     map_fig.add_tile(STAMEN_TONER)
-    map_fig.image_url(
-        url="url", global_alpha=image_alpha, source=fig_source, **img_args
-    )
-    map_fig.cross(
-        x="x", y="y", size=12, fill_alpha=0.9, source=pt_source, color=config.RED
-    )
+    map_fig.image_url(url="url",
+                      global_alpha=image_alpha,
+                      source=fig_source,
+                      **img_args)
+    map_fig.cross(x="x",
+                  y="y",
+                  size=12,
+                  fill_alpha=0.9,
+                  source=pt_source,
+                  color=config.RED)
     fig_source.js_on_change("tags", title_callback)
     slider.js_on_change("value", slider_callback)
     url_source.js_on_change("tags", newest_callback)
@@ -256,8 +263,8 @@ def create_bokeh_figure(
 
 
 def render_html():
-    doc = create_bokeh_figure(G17_CORNERS, config.LON_LIMITS, config.LAT_LIMITS,
-                              config.FIG_DIR)
+    doc = create_bokeh_figure(G17_CORNERS, config.LON_LIMITS,
+                              config.LAT_LIMITS, config.FIG_DIR)
     env = Environment(loader=PackageLoader("goes_viewer", "templates"))
     template = env.get_template("index.html")
     html = file_html(doc, CDN, "GOES Image Viewer", template)
