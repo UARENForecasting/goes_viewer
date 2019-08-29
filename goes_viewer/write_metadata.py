@@ -4,6 +4,7 @@ import json
 import logging
 
 from pyproj import transform
+import pytz
 import requests
 
 from goes_viewer import config
@@ -46,9 +47,9 @@ def parse_metadata(url, filters, auth=(), params={}):
 
 def get_latest_data(url, metadata_list, auth=(), params={}):
     params = params.copy()
-    now = dt.datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
-    params['startat'] = now
-    params['endat'] = now
+    now = dt.datetime.utcnow().replace(tzinfo=pytz.utc)
+    params['startat'] = now.strftime('%Y%m%dT%H%M%SZ')
+    params['endat'] = now.strftime('%Y%m%dT%H%M%SZ')
     params['beforestart'] = True
     out = []
     for out_dict in metadata_list:
@@ -56,15 +57,27 @@ def get_latest_data(url, metadata_list, auth=(), params={}):
         sp['id'] = out_dict['name']
         req = requests.get(f'{url}/data', auth=auth, params=sp)
         req.raise_for_status()
+        otime = 'N/A'
+        oval = 'N/A'
         try:
             data = req.json()['Data'][0]
         except IndexError:
             logger.info('No data for %s', out_dict['name'])
-            out_dict['last_time'] = 'N/A'
-            out_dict['last_value'] = 'N/A'
         else:
-            out_dict['last_time'] = data['BeginAt']
-            out_dict['last_value'] = f"{data['Value']:0.2f}"
+            dtime = dt.datetime.strptime(
+                data['BeginAt'],
+                '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=pytz.utc).astimezone(
+                    pytz.timezone('MST'))
+            # only if the value is from the past hour, or from the past day and also
+            # zero do we include
+            if dtime > now - dt.timedelta(hours=1) or (
+                    dtime > now - dt.timedelta(days=1)
+                    and float(data['Value']) < 1e-6):
+                otime = dtime.strftime('%Y-%m-%d %H:%M:%S MST')
+                oval = f"{data['Value']:0.2f}"
+        finally:
+            out_dict['last_time'] = otime
+            out_dict['last_value'] = oval
         out.append(out_dict)
     return out
 

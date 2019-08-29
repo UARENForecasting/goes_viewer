@@ -6,6 +6,7 @@ numpy
 pillow
 pyproj
 pyresample
+pytz
 bokeh
 boto3
 requests
