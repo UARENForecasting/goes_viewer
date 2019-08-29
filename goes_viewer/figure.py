@@ -76,7 +76,8 @@ def create_bokeh_figure(
         toolbar_location="right",
         sizing_mode="scale_width",
         name="map_fig",
-        tooltips=[("Site", "@name")],
+        tooltips=[("Site", "@name"), ('Value', '@value of @capacity @units Peak'),
+                  ('Time', '@time')],
     )
     map_fig.xaxis.axis_label = (
         "Data from https://registry.opendata.aws/noaa-goes/. Map tiles from Stamen Design. "  # NOQA
@@ -118,7 +119,6 @@ def create_bokeh_figure(
     if (len > max_images) {
         start = len - max_images
     }
-    console.log(start, len)
     for (i=start; i<len; i++) {
         var name = urls[i]['name'];
         if (name.endsWith('.png')) {
@@ -147,12 +147,16 @@ def create_bokeh_figure(
     # url_source.if_modified = True
 
     pt_adapter = CustomJS(code="""
-    const result = {x: [], y: [], name: []}
+    const result = {x: [], y: [], name: [], capacity: [], value: [], time: [], units: []}
     const pts = cb_data.response
     for (i=0; i<pts.length; i++) {
         result.x.push(pts[i]['x'])
         result.y.push(pts[i]['y'])
         result.name.push(pts[i]['name'])
+        result.capacity.push(pts[i]['capacity'])
+        result.units.push(pts[i]['units'])
+        result.time.push(pts[i]['last_time'])
+        result.value.push(pts[i]['last_value'])
     }
     return result
 """)
