@@ -10,3 +10,4 @@ bokeh
 boto3
 requests
 croniter
+click
