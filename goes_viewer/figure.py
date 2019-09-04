@@ -282,15 +282,16 @@ def create_bokeh_figure(
     return doc
 
 
-def render_html():
+def render_html(base_dir):
     doc = create_bokeh_figure(G17_CORNERS, config.LON_LIMITS,
                               config.LAT_LIMITS, config.FIG_DIR)
     env = Environment(loader=PackageLoader("goes_viewer", "templates"))
     template = env.get_template("index.html")
     html = file_html(doc, CDN, "GOES Image Viewer", template)
-    with open(config.BASE_DIR / config.FILENAME, "w") as f:
+    with open(base_dir / config.FILENAME, "w") as f:
         f.write(html)
 
 
 if __name__ == "__main__":
-    render_html()
+    from pathlib import Path
+    render_html(Path('.'))

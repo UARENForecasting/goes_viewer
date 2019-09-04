@@ -13,7 +13,7 @@ import s3fs
 import xarray as xr
 
 
-from goes_viewer.config import CONTRAST, FIG_DIR, SQS_URL, SAVE_BUCKET
+from goes_viewer.config import CONTRAST
 from goes_viewer.constants import (
     G16_CORNERS,
     G17_CORNERS,
@@ -181,14 +181,14 @@ def get_s3_keys(bucket, timestamp=None, prefix="ABL-L2-MCMIPF"):
             break
 
 
-def save_s3(img, filename):
+def save_s3(img, filename, save_bucket):
     fs = s3fs.S3FileSystem()
-    with fs.open(f'{SAVE_BUCKET}/{filename}', mode='wb') as f:
+    with fs.open(f'{save_bucket}/{filename}', mode='wb') as f:
         Image.fromarray(img).save(f, format="png", optimize=True)
 
 
-def save_local(img, filename):
-    path = Path(FIG_DIR) / filename
+def save_local(img, filename, fig_dir):
+    path = Path(fig_dir) / filename
     logging.info('Saving img to %s', path)
     with open(path, mode='wb') as f:
         Image.fromarray(img).save(f, format="png", optimize=True)
@@ -208,9 +208,9 @@ def process_s3_file(bucket, key):
     return nimg, make_img_filename(ds)
 
 
-def get_sqs_keys():
+def get_sqs_keys(sqs_url):
     sqs = boto3.resource('sqs')
-    q = sqs.Queue(SQS_URL)
+    q = sqs.Queue(sqs_url)
     for message in q.receive_messages(MaxNumberOfMessages=10,
                                       VisibilityTimeout=600):
         body = message.body.split(':')
@@ -220,11 +220,11 @@ def get_sqs_keys():
         message.delete()
 
 
-def get_process_and_save(save_func=save_local):
-    for bucket, key in get_sqs_keys():
+def get_process_and_save(sqs_url, fig_dir):
+    for bucket, key in get_sqs_keys(sqs_url):
         logging.info('Processing file from %s: %s', bucket, key)
         img, filename = process_s3_file(bucket, key)
-        save_func(img, filename)
+        save_local(img, filename, fig_dir)
 
 
 if __name__ == "__main__":

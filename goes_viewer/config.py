@@ -15,11 +15,7 @@ LON_LIMITS = [
 ]
 LAT_LIMITS = [float(s) for s in os.getenv("GV_LAT_LIMITS", "31,37").split(",")]
 FILENAME = os.getenv("GV_FILE_NAME", "index.html")
-API_URL = os.getenv("GV_API_URL")
-API_USER = os.getenv("GV_API_USER")
-API_PASS = os.getenv("GV_API_PASSWORD")
 FILTERS = json.loads(os.getenv("GV_FILTERS", '{"Type": "ghi"}'))
-BASE_DIR = Path(os.getenv("GV_BASE_DIR", "."))
 FIG_DIR = os.getenv('GV_FIG_DIR', 'figs/')
 PLAY_SPEED = os.getenv("GV_PLAY_SPEED", 500)
 MAX_IMAGES = os.getenv("GV_MAX_IMAGES", 24)

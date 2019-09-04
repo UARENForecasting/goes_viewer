@@ -2,13 +2,17 @@ import datetime as dt
 from functools import partial
 import json
 import logging
+from pathlib import Path
+import tempfile
+
 
 from pyproj import transform
 import pytz
 import requests
 
-from goes_viewer import config
+
 from goes_viewer.constants import WEB_MERCATOR, GEODETIC
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +27,9 @@ def filter_func(filters, item):
     return True
 
 
-def parse_metadata(url, filters, auth=(), params={}):
-    req = requests.get(f'{url}/metadata', auth=auth, params=params)
+def parse_metadata(url, filters, auth=(), params={}, timeout=None):
+    req = requests.get(f'{url}/metadata', auth=auth, params=params,
+                       timeout=timeout)
     req.raise_for_status()
     out = []
     js = req.json()["Metadata"]
@@ -45,7 +50,9 @@ def parse_metadata(url, filters, auth=(), params={}):
     return out
 
 
-def get_latest_data(url, metadata_list, auth=(), params={}):
+def get_latest_data(url, metadata_list, auth=(), params={},
+                    timeout=None):
+    logger.info('Getting data for %s sites', len(metadata_list))
     params = params.copy()
     now = dt.datetime.utcnow().replace(tzinfo=pytz.utc)
     params['startat'] = now.strftime('%Y%m%dT%H%M%SZ')
@@ -55,7 +62,8 @@ def get_latest_data(url, metadata_list, auth=(), params={}):
     for out_dict in metadata_list:
         sp = params.copy()
         sp['id'] = out_dict['name']
-        req = requests.get(f'{url}/data', auth=auth, params=sp)
+        req = requests.get(f'{url}/data', auth=auth, params=sp,
+                           timeout=timeout)
         req.raise_for_status()
         otime = 'N/A'
         oval = 'N/A'
@@ -79,18 +87,24 @@ def get_latest_data(url, metadata_list, auth=(), params={}):
             out_dict['last_time'] = otime
             out_dict['last_value'] = oval
         out.append(out_dict)
+    logger.info('Done updating data')
     return out
 
 
-if __name__ == "__main__":
-    auth = (config.API_USER, config.API_PASS)
-    meta = parse_metadata(config.API_URL,
-                          config.FILTERS,
-                          auth=auth,
-                          params=config.DATA_PARAMS)
-    out = get_latest_data(config.API_URL,
-                          meta,
-                          auth=auth,
-                          params=config.DATA_PARAMS)
-    with open(config.BASE_DIR / "metadata.json", "w") as f:
-        json.dump(out, f)
+def update_existing_file(metadata_file, base_url, auth, params, timeout):
+    logger.info('Updating values in metadata file')
+    with open(metadata_file, 'r') as f:
+        meta = json.load(f)
+
+    out = get_latest_data(base_url, meta, auth=auth,
+                          params=params, timeout=timeout)
+    _, tmpfile = tempfile.mkstemp(dir=metadata_file.parent)
+    try:
+        p = Path(tmpfile)
+        with open(p, "w") as f:
+            json.dump(out, f)
+    except Exception:
+        p.unlink()
+        raise ()
+    else:
+        p.rename(metadata_file)

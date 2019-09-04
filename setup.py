@@ -11,5 +11,11 @@ setup(
     packages=['goes_viewer'],
     zip_safe=True,
     version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass()
+    cmdclass=versioneer.get_cmdclass(),
+    entry_points={
+        'console_scripts': [
+            'goes-viewer=goes_viewer.cli:cli'
+        ]
+    },
+
 )
