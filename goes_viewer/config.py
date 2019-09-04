@@ -9,9 +9,9 @@ CONTRAST = int(os.getenv("GV_CONTRAST", 105))
 TILE_SOURCE = os.getenv("GV_TILE_SOURCE",
                         "https://stamen-tiles.a.ssl.fastly.net/toner-lite")
 LON_LIMITS = [
-    float(s) for s in os.getenv("GV_LON_LIMITS", "-116,-102").split(",")
+    float(s) for s in os.getenv("GV_LON_LIMITS", "-115,-103").split(",")
 ]
-LAT_LIMITS = [float(s) for s in os.getenv("GV_LAT_LIMITS", "30,38").split(",")]
+LAT_LIMITS = [float(s) for s in os.getenv("GV_LAT_LIMITS", "31,37").split(",")]
 FILENAME = os.getenv("GV_FILE_NAME", "index.html")
 API_URL = os.getenv("GV_API_URL")
 API_USER = os.getenv("GV_API_USER")
