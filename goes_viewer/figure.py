@@ -3,7 +3,9 @@ from bokeh.models import (
     WMTSTileSource,
     Slider,
     ColumnDataSource,
+    GeoJSONDataSource,
     CustomJS,
+    HoverTool,
     AjaxDataSource,
     RadioButtonGroup,
 )
@@ -13,7 +15,7 @@ from bokeh.io import curdoc
 from jinja2 import Environment, PackageLoader
 from pyproj import transform
 
-from goes_viewer import config
+from goes_viewer import config, areas
 from goes_viewer.constants import WEB_MERCATOR, G17_CORNERS, DX, DY
 
 
@@ -76,9 +78,14 @@ def create_bokeh_figure(
         toolbar_location="right",
         sizing_mode="scale_width",
         name="map_fig",
-        tooltips=[("Site", "@name"), ('Value', '@value of @capacity @units Peak'),
+    )
+    hover = HoverTool(
+        names=['sites'],
+        tooltips=[("Site", "@name"),
+                  ('Value', '@value of @capacity @units Max'),
                   ('Time', '@time')],
     )
+    map_fig.add_tools(hover)
     map_fig.xaxis.axis_label = (
         "Data from https://registry.opendata.aws/noaa-goes/. Map tiles from Stamen Design. "  # NOQA
         "Plot generated with Bokeh by UA HAS Renewable Power Forecasting Group."
@@ -249,12 +256,21 @@ def create_bokeh_figure(
                       global_alpha=image_alpha,
                       source=fig_source,
                       **img_args)
+    if config.SERVICE_AREA is not None:
+        geo_source = GeoJSONDataSource(geojson=getattr(areas, config.SERVICE_AREA.upper()))
+        map_fig.patches(xs='xs',
+                        ys='ys',
+                        source=geo_source,
+                        fill_alpha=0,
+                        line_alpha=0.9,
+                        line_color=config.BLUE)
     map_fig.cross(x="x",
                   y="y",
                   size=12,
                   fill_alpha=0.9,
                   source=pt_source,
-                  color=config.RED)
+                  color=config.RED,
+                  name='sites')
     fig_source.js_on_change("tags", title_callback)
     slider.js_on_change("value", slider_callback)
     url_source.js_on_change("tags", newest_callback)
