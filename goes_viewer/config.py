@@ -5,6 +5,8 @@ from pathlib import Path
 RED = "#AB0520"
 BLUE = "#0C234B"
 S3_PREFIX = os.getenv("GV_S3_PREFIX", "ABI-L2-MCMIPF")
+SQS_URL = os.getenv("GV_SQS_URL", None)
+SAVE_BUCKET = os.getenv("GV_SAVE_BUCKET", "")
 CONTRAST = int(os.getenv("GV_CONTRAST", 105))
 TILE_SOURCE = os.getenv("GV_TILE_SOURCE",
                         "https://stamen-tiles.a.ssl.fastly.net/toner-lite")
