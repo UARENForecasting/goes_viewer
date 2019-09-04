@@ -199,19 +199,6 @@ def process_s3_file(bucket, key):
     return nimg, make_img_filename(ds)
 
 
-def process_sqs_event(event, context):
-    for erec in event['Records']:
-        sns_msg = json.loads(erec['body'])
-        rec = json.loads(sns_msg['Message'])
-        for record in rec['Records']:
-            print(record)
-            bucket = record['s3']['bucket']['name']
-            key = record['s3']['object']['key']
-            print(bucket, key)
-            if key.startswith(S3_PREFIX):
-                print(f'processing {key}')
-                img, filename = process_s3_file(bucket, key)
-                save_s3(img, filename, 'goes17images')
 
 if __name__ == "__main__":
     import logging
