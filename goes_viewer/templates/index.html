@@ -38,12 +38,15 @@
 
 {% block content %}
 <div class="container mt-4" id="content_main">
-  <div class="row">
+  <div class="row d-flex justify-content-between">
     <div class="col-sm-4 col-xs-7">
       {{ embed(docs[0].roots.timeslider) | indent(10) }}
     </div>
     <div class="col-sm-3 col-xs-4">
       {{ embed(docs[0].roots.play_buttons) | indent(10) }}
+    </div>
+    <div class="col-sm-3 col-xs-3 d-none d-sm-block">
+      <a href="https://has.arizona.edu"><img src="has_logo.png" alt="UA HAS Logo"></a>
     </div>
   </div>
   <div class="row">
@@ -53,11 +56,14 @@
   </div>
   <div class="row mt-4">
     <div class="well">
-      The image is generated with data from the GOES-W geostationary satellite.
-      Use the toolbar on the right to zoom and move the map, and use the left
-      and right arrow keys to change the image time. The play, stop, and reset
-      buttons may be used to animate the figure. Hovering over a red cross will
-      display the solar power plants at the indicated location.
+      The image is generated with data from the GOES-W geostationary
+      satellite.  Use the toolbar on the right to zoom and move the
+      map, and use the left and right arrow keys to change the image
+      time. The play, stop, and reset buttons may be used to animate
+      the figure. Hovering over a red cross will display the solar
+      power plants at the indicated location, along with the latest
+      measured value, max power, and time of last measurement. The
+      blue polygons represent the utility retail service area(s).
     </div>
   </div>
 </div>
