@@ -1,4 +1,0 @@
-#! /bin/sh
-
-python -m goes_viewer.figure
-python -m goes_viewer.write_metadata
