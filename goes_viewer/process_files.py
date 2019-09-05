@@ -3,6 +3,7 @@ import datetime as dt
 from pathlib import Path
 import logging
 import time
+import threading
 
 
 import boto3
@@ -209,10 +210,11 @@ def process_s3_file(bucket, key):
     return nimg, make_img_filename(ds)
 
 
-def _update_visibility(message, timeout):
-    while True:
+def _update_visibility(message, timeout, local):
+    while not local.stop:
         message.change_visibility(VisibilityTimeout=timeout)
         time.sleep(timeout / 2)
+
 
 def get_sqs_keys(sqs_url):
     sqs = boto3.resource('sqs')
@@ -226,10 +228,15 @@ def get_sqs_keys(sqs_url):
             # continuously update message visibility until processing
             # is complete
             with ThreadPoolExecutor() as exc:
-                fut = exc.submit(_update_visibility, message, 30)
+                data = threading.local()
+                data.stop = False
+                fut = exc.submit(_update_visibility, message, 30, data)
                 yield (bucket, key)
+                data.stop = True
+                logging.debug('stopping message visibility update')
                 fut.cancel()
             message.delete()
+            logging.debug("message deleted")
         messages = q.receive_messages()
 
 
