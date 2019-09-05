@@ -201,16 +201,13 @@ def save_local(img, filename, fig_dir):
         Image.fromarray(img).save(f, format="png", optimize=True)
 
 
-def process_s3_file(bucket, key, retries=0):
-    if retries < 0:
-        raise ValueError(f'Retried processing {bucket} {key} too many times')
+def process_s3_file(bucket, key):
     fs = s3fs.S3FileSystem(anon=True)
-    try:
-        remote_file = fs.open(f'{bucket}/{key}', mode='rb')
-    except FileNotFoundError:
-        logging.warning('File not found for %s: %s', bucket, key)
-        time.sleep(5)
-        return process_s3_file(bucket, key, retries - 1)
+    path = f'{bucket}/{key}'
+    if not fs.exists(path):
+        logging.warning('%s does not yet exist', path)
+        raise ValueError()
+    remote_file = fs.open(path, mode='rb', fill_cache=True)
     if 'goes17' in bucket:
         corners = G17_CORNERS
     else:
@@ -258,5 +255,8 @@ def get_sqs_keys(sqs_url):
 def get_process_and_save(sqs_url, fig_dir):
     for bucket, key in get_sqs_keys(sqs_url):
         logging.info('Processing file from %s: %s', bucket, key)
-        img, filename = process_s3_file(bucket, key, retries=3)
+        try:
+            img, filename = process_s3_file(bucket, key)
+        except ValueError:
+            break
         save_local(img, filename, fig_dir)
