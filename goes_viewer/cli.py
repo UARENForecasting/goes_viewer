@@ -30,8 +30,12 @@ def basic_logging_config():
                         format='%(asctime)s %(levelname)s %(message)s')
     sentry_dsn = os.getenv('SENTRY_DSN', None)
     if sentry_dsn is not None:
-        import sentry_sdk
-        sentry_sdk.init(dsn=sentry_dsn, release=f'goes_viewer@{__version__}')
+        try:
+            import sentry_sdk
+        except ImportError:
+            logging.error('Cannot monitor with sentry')
+        else:
+            sentry_sdk.init(dsn=sentry_dsn, release=f'goes_viewer@{__version__}')
 
 
 sys.excepthook = partial(handle_exception, logging.getLogger())
