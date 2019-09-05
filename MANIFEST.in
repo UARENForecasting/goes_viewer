@@ -1,3 +1,3 @@
 include versioneer.py
 include goes_viewer/_version.py
-recursive-include goes_viewer/areas
+include goes_viewer/areas/*.json
