@@ -149,12 +149,9 @@ def resample_image(resample_params, shape, img_arr):
     return (np.ma.fix_invalid(out).filled(0) * 255).astype("uint8")
 
 
-def make_img_filename(key):
-    platform = key.split('_')[-4]
-    start = dt.datetime.strptime(key.split('_')[-3][:-1], 's%Y%j%H%M%S')
-    end = dt.datetime.strptime(key.split('_')[-2][:-1], 'e%Y%j%H%M%S')
-    date = start + dt.timedelta(seconds=int((end - start).total_seconds() / 2))
-    return f'{platform}_{date.strftime("%Y-%m-%dT%H:%M:%SZ")}.png'
+def make_img_filename(ds):
+    date = dt.datetime.utcfromtimestamp(ds.t.item() / 1e9)
+    return f'{ds.platform_ID}_{date.strftime("%Y-%m-%dT%H:%M:%SZ")}.png'
 
 
 def get_s3_keys(bucket, timestamp=None, prefix="ABL-L2-MCMIPF"):
@@ -192,7 +189,8 @@ def save_s3(img, filename, save_bucket):
         Image.fromarray(img).save(f, format="png", optimize=True)
 
 
-def save_local(img, path):
+def save_local(img, filename, fig_dir):
+    path = Path(fig_dir) / filename
     logging.info('Saving img to %s', path)
     with open(path, mode='wb') as f:
         Image.fromarray(img).save(f, format="png", optimize=True)
@@ -209,7 +207,7 @@ def process_s3_file(bucket, key):
     img = make_geocolor_image(ds)
     resample_params, shape = make_resample_params(ds, G17_CORNERS)
     nimg = resample_image(resample_params, shape, img)
-    return nimg
+    return nimg, make_img_filename(ds)
 
 
 def _update_visibility(message, timeout, local):
@@ -245,13 +243,8 @@ def get_sqs_keys(sqs_url):
 def get_process_and_save(sqs_url, fig_dir):
     for bucket, key in get_sqs_keys(sqs_url):
         logging.info('Processing file from %s: %s', bucket, key)
-        filename = make_img_filename(key)
-        outpath = Path(fig_dir) / filename
-        if not outpath.exists():
-            img = process_s3_file(bucket, key)
-            save_local(img, outpath)
-        else:
-            logging.info('File already exists at %s', outpath)
+        img, filename = process_s3_file(bucket, key)
+        save_local(img, filename, fig_dir)
 
 
 if __name__ == "__main__":
