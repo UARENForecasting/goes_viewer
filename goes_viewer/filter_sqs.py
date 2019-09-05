@@ -6,7 +6,6 @@ import json
 import boto3
 import os
 
-
 S3_PREFIX = os.getenv('S3_PREFIX', 'ABI-L2-MCMIPF')
 SQS_URL = os.getenv('SQS_URL', '')
 
@@ -23,10 +22,9 @@ def lambda_handler(event, context):
             bucket = record['s3']['bucket']['name']
             key = record['s3']['object']['key']
             if key.startswith(S3_PREFIX):
-                print(f'sending to queue {key}')
-                entries.append({'Id': str(i), 'MessageBody': key,
-                                'MessageGroupId': 'fulldisk',
-                                'MessageDeduplicationId': key})
+                body = f'{bucket}:{key}'
+                print(f'sending to queue {body}')
+                entries.append({'Id': str(i), 'MessageBody': body})
                 i += 1
     if entries:
         resp = queue.send_messages(Entries=entries)
