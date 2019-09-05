@@ -1,3 +1,4 @@
 include versioneer.py
 include goes_viewer/_version.py
 include goes_viewer/areas/*.json
+include goes_viewer/templates/*
