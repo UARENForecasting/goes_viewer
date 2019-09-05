@@ -254,40 +254,64 @@ def create_bokeh_figure(
     """
     )
     change_speed_callback = CustomJS(
-        args=dict(slider=slider, play_buttons=play_buttons),
-        code="""
-    function advance() {
-        if (slider.value < slider.end) {
-            slider.value += 1
-        } else {
-            slider.value = 0
-        }
-        slider.change.emit()
-    }
-    if (play_buttons.active == 0){
-        var id = play_buttons._id
-        clearInterval(id)
-        id = setInterval(advance, cb_obj.data['speed'][0])
-        play_buttons._id = id
-    }
-    """
-    )
-    play_callback = CustomJS(
-        args=dict(slider=slider, speed_source=speed_source),
+        args=dict(slider=slider, play_buttons=play_buttons,
+                  pause=config.RESTART_PAUSE),
         code="""
     function stop() {
-        var id = cb_obj._id
+        var id = play_buttons._id
         clearInterval(id)
-        cb_obj.active = 1
+    }
+
+    function start() {
+        var id = setInterval(advance, cb_obj.data['speed'][0])
+        play_buttons._id = id
+    }
+
+    function startover(){
+        slider.value = 0
+        slider.change.emit()
+        start()
     }
 
     function advance() {
         if (slider.value < slider.end) {
             slider.value += 1
+            slider.change.emit()
         } else {
-            slider.value = 0
+            stop()
+            setTimeout(startover, pause)
         }
+    }
+
+    if (play_buttons.active == 0){
+        stop()
+        start()
+    }
+    """
+    )
+    play_callback = CustomJS(
+        args=dict(slider=slider, speed_source=speed_source,
+                  pause=config.RESTART_PAUSE),
+        code="""
+    function stop() {
+        var id = cb_obj._id
+        clearInterval(id)
+    }
+
+    function startover(){
+        slider.value = 0
         slider.change.emit()
+        start()
+    }
+
+    function advance() {
+        if (slider.value < slider.end) {
+            slider.value += 1
+            slider.change.emit()
+        } else {
+            stop()
+            setTimeout(startover, pause)
+        }
     }
 
     function start() {
@@ -299,10 +323,12 @@ def create_bokeh_figure(
         start()
     } else if (cb_obj.active == 2) {
         stop()
+        cb_obj.active = 1
         slider.value = 0
         slider.change.emit()
     } else {
         stop()
+        cb_obj.active = 1
     }
     """,
     )
