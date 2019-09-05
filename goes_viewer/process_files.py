@@ -57,6 +57,10 @@ def open_file(path, corners, engine='h5netcdf'):
 
 
 def make_geocolor_image(ds):
+    """
+    Uses simple fractional combination with gamma correction as described in
+    https://doi.org/10.1029/2018EA000379
+    """
     # Load the three channels into appropriate R, G, and B
     R = ds["CMI_C02"].data
     NIR = ds["CMI_C03"].data
