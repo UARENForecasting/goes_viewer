@@ -1,7 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
 import datetime as dt
-from pathlib import Path
+import json
 import logging
+from pathlib import Path
 import time
 import threading
 
@@ -15,7 +16,7 @@ import s3fs
 import xarray as xr
 
 
-from goes_viewer.config import CONTRAST
+from goes_viewer.config import CONTRAST, S3_PREFIX
 from goes_viewer.constants import (
     G16_CORNERS,
     G17_CORNERS,
@@ -200,9 +201,16 @@ def save_local(img, filename, fig_dir):
         Image.fromarray(img).save(f, format="png", optimize=True)
 
 
-def process_s3_file(bucket, key):
+def process_s3_file(bucket, key, retries=0):
+    if retries < 0:
+        raise ValueError(f'Retried processing {bucket} {key} too many times')
     fs = s3fs.S3FileSystem(anon=True)
-    remote_file = fs.open(f'{bucket}/{key}', mode='rb')
+    try:
+        remote_file = fs.open(f'{bucket}/{key}', mode='rb')
+    except FileNotFoundError:
+        logging.warning('File not found for %s: %s', bucket, key)
+        time.sleep(5)
+        return process_s3_file(bucket, key, retries - 1)
     if 'goes17' in bucket:
         corners = G17_CORNERS
     else:
@@ -223,36 +231,32 @@ def _update_visibility(message, timeout, local):
 def get_sqs_keys(sqs_url):
     sqs = boto3.resource('sqs')
     q = sqs.Queue(sqs_url)
-    messages = q.receive_messages()
+    messages = q.receive_messages(MaxNumberOfMessages=10)
     while len(messages) > 0:
         for message in messages:
-            body = message.body.split(':')
-            bucket = body[0]
-            key = body[-1]
             # continuously update message visibility until processing
             # is complete
             with ThreadPoolExecutor() as exc:
                 data = threading.local()
                 data.stop = False
                 fut = exc.submit(_update_visibility, message, 30, data)
-                yield (bucket, key)
+                sns_msg = json.loads(message.body)
+                rec = json.loads(sns_msg['Message'])
+                for record in rec['Records']:
+                    bucket = record['s3']['bucket']['name']
+                    key = record['s3']['object']['key']
+                    if key.startswith(S3_PREFIX):
+                        yield (bucket, key)
                 data.stop = True
                 logging.debug('stopping message visibility update')
                 fut.cancel()
             message.delete()
             logging.debug("message deleted")
-        messages = q.receive_messages()
+        messages = q.receive_messages(MaxNumberOfMessages=10)
 
 
 def get_process_and_save(sqs_url, fig_dir):
     for bucket, key in get_sqs_keys(sqs_url):
         logging.info('Processing file from %s: %s', bucket, key)
-        img, filename = process_s3_file(bucket, key)
+        img, filename = process_s3_file(bucket, key, retries=3)
         save_local(img, filename, fig_dir)
-
-
-if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s %(message)s', level='INFO')
-    while True:
-        get_process_and_save(save_local)
-        time.sleep(5)

@@ -3,7 +3,7 @@ import os
 
 RED = "#AB0520"
 BLUE = "#0C234B"
-S3_PREFIX = os.getenv("GV_S3_PREFIX", "ABI-L2-MCMIPF")
+S3_PREFIX = os.getenv("GV_S3_PREFIX", "ABI-L2-MCMIPC")
 SQS_URL = os.getenv("GV_SQS_URL", None)
 SAVE_BUCKET = os.getenv("GV_SAVE_BUCKET", "")
 CONTRAST = int(os.getenv("GV_CONTRAST", 105))
@@ -18,6 +18,6 @@ FILTERS = json.loads(os.getenv("GV_FILTERS", '{"Type": "ghi"}'))
 FIG_DIR = os.getenv('GV_FIG_DIR', 'figs/')
 PLAY_SPEED = os.getenv("GV_PLAY_SPEED", 300)
 PLAY_SPEED_INCR = os.getenv("GV_PLAY_SPEED_INCR", 100)
-MAX_IMAGES = os.getenv("GV_MAX_IMAGES", 24)
+MAX_IMAGES = os.getenv("GV_MAX_IMAGES", 48)
 DATA_PARAMS = json.loads(os.getenv("GV_DATA_PARAMS", '{}'))
 SERVICE_AREA = os.getenv('GV_SERVICE_AREA', None)
