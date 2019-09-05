@@ -211,13 +211,17 @@ def process_s3_file(bucket, key):
 def get_sqs_keys(sqs_url):
     sqs = boto3.resource('sqs')
     q = sqs.Queue(sqs_url)
-    for message in q.receive_messages(MaxNumberOfMessages=10,
-                                      VisibilityTimeout=600):
-        body = message.body.split(':')
-        bucket = body[0]
-        key = body[-1]
-        yield (bucket, key)
-        message.delete()
+    messages = q.receive_messages()
+    while len(messages) > 0:
+        for message in messages:
+            body = message.body.split(':')
+            bucket = body[0]
+            key = body[-1]
+            # give processing 5 minutes to complete
+            message.change_visibility(VisibilityTimeout=300)
+            yield (bucket, key)
+            message.delete()
+        messages = q.receive_messages()
 
 
 def get_process_and_save(sqs_url, fig_dir):
