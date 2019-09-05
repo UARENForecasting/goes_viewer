@@ -140,7 +140,9 @@ def run_times(cron, cron_tz):
     now = _now(cron_tz)
     iter = croniter(cron, now)
     while True:
-        yield iter.get_next(dt.datetime)
+        next_time = iter.get_next(dt.datetime)
+        if next_time > _now(cron_tz):
+            yield next_time
 
 
 def silent_exit(f):
