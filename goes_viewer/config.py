@@ -1,6 +1,5 @@
 import json
 import os
-from pathlib import Path
 
 RED = "#AB0520"
 BLUE = "#0C234B"
@@ -17,7 +16,8 @@ LAT_LIMITS = [float(s) for s in os.getenv("GV_LAT_LIMITS", "31,37").split(",")]
 FILENAME = os.getenv("GV_FILE_NAME", "index.html")
 FILTERS = json.loads(os.getenv("GV_FILTERS", '{"Type": "ghi"}'))
 FIG_DIR = os.getenv('GV_FIG_DIR', 'figs/')
-PLAY_SPEED = os.getenv("GV_PLAY_SPEED", 500)
+PLAY_SPEED = os.getenv("GV_PLAY_SPEED", 300)
+PLAY_SPEED_INCR = os.getenv("GV_PLAY_SPEED_INCR", 100)
 MAX_IMAGES = os.getenv("GV_MAX_IMAGES", 24)
 DATA_PARAMS = json.loads(os.getenv("GV_DATA_PARAMS", '{}'))
 SERVICE_AREA = os.getenv('GV_SERVICE_AREA', None)

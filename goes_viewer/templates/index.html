@@ -38,12 +38,12 @@
 
 {% block content %}
 <div class="container mt-4" id="content_main">
-  <div class="row d-flex justify-content-between">
-    <div class="col-sm-4 col-xs-7">
+  <div class="row d-flex justify-content-sm-between">
+    <div class="col-sm-4 col-xs-5">
       {{ embed(docs[0].roots.timeslider) | indent(10) }}
     </div>
     <div class="col-sm-3 col-xs-4">
-      {{ embed(docs[0].roots.play_buttons) | indent(10) }}
+      {{ embed(docs[0].roots.all_play_buttons) | indent(10) }}
     </div>
     <div class="col-sm-3 col-xs-3 d-none d-sm-block">
       <a href="https://has.arizona.edu"><img src="has_logo.png" alt="UA HAS Logo"></a>

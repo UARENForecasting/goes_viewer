@@ -1,4 +1,5 @@
 from bokeh.plotting import figure
+from bokeh.layouts import row
 from bokeh.models import (
     WMTSTileSource,
     Slider,
@@ -8,6 +9,7 @@ from bokeh.models import (
     HoverTool,
     AjaxDataSource,
     RadioButtonGroup,
+    Button,
 )
 from bokeh.resources import CDN
 from bokeh.embed import file_html
@@ -108,6 +110,25 @@ def create_bokeh_figure(
         name="play_buttons",
         sizing_mode="scale_width",
     )
+    speed_source = ColumnDataSource(data=dict(speed=[config.PLAY_SPEED]),
+                                    name='speed_source')
+    faster_button = Button(
+        label="\u2795",
+        sizing_mode='fixed',
+        width=30,
+        height=30,
+        name="faster_button"
+    )
+    slower_button = Button(
+        label="\u2796",
+        sizing_mode='fixed',
+        width=30,
+        height=30,
+        name="slower_button"
+    )
+    play_button_row = row([play_buttons, faster_button, slower_button],
+                          sizing_mode='scale_width',
+                          name='all_play_buttons')
     fig_source = ColumnDataSource(data=dict(url=[]),
                                   name="figsource",
                                   id="figsource")
@@ -212,9 +233,47 @@ def create_bokeh_figure(
         title.change.emit()
         """,
     )
-
+    faster_callback = CustomJS(
+        args=dict(speed_source=speed_source, speed_incr=config.PLAY_SPEED_INCR),
+        code="""
+    var old = speed_source.data['speed'][0]
+    var newspeed = old - speed_incr
+    if (newspeed > 0){
+        speed_source.data = {"speed": [newspeed]}
+        speed_source.change.emit()
+    }
+    """
+    )
+    slower_callback = CustomJS(
+        args=dict(speed_source=speed_source, speed_incr=config.PLAY_SPEED_INCR),
+        code="""
+    var old = speed_source.data['speed'][0]
+    var newspeed = old + speed_incr
+    speed_source.data = {"speed": [newspeed]}
+    speed_source.change.emit()
+    """
+    )
+    change_speed_callback = CustomJS(
+        args=dict(slider=slider, play_buttons=play_buttons),
+        code="""
+    function advance() {
+        if (slider.value < slider.end) {
+            slider.value += 1
+        } else {
+            slider.value = 0
+        }
+        slider.change.emit()
+    }
+    if (play_buttons.active == 0){
+        var id = play_buttons._id
+        clearInterval(id)
+        id = setInterval(advance, cb_obj.data['speed'][0])
+        play_buttons._id = id
+    }
+    """
+    )
     play_callback = CustomJS(
-        args=dict(slider=slider, play_speed=config.PLAY_SPEED),
+        args=dict(slider=slider, speed_source=speed_source),
         code="""
     function stop() {
         var id = cb_obj._id
@@ -232,7 +291,7 @@ def create_bokeh_figure(
     }
 
     function start() {
-        var id = setInterval(advance, play_speed)
+        var id = setInterval(advance, speed_source.data['speed'][0])
         cb_obj._id = id
     }
 
@@ -275,8 +334,11 @@ def create_bokeh_figure(
     slider.js_on_change("value", slider_callback)
     url_source.js_on_change("tags", newest_callback)
     play_buttons.js_on_change("active", play_callback)
+    faster_button.js_on_click(faster_callback)
+    slower_button.js_on_click(slower_callback)
+    speed_source.js_on_change("data", change_speed_callback)
     doc = curdoc()
-    for thing in (map_fig, play_buttons, slider):
+    for thing in (map_fig, play_button_row, slider):
         doc.add_root(thing)
     doc.title = "GOES Image Viewer"
     return doc
