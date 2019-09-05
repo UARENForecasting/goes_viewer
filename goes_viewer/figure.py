@@ -328,7 +328,6 @@ def create_bokeh_figure(
         slider.change.emit()
     } else {
         stop()
-        cb_obj.active = 1
     }
     """,
     )
