@@ -3,6 +3,7 @@ import datetime as dt
 import json
 import logging
 from pathlib import Path
+import tempfile
 import time
 import threading
 
@@ -197,8 +198,17 @@ def save_s3(img, filename, save_bucket):
 def save_local(img, filename, fig_dir):
     path = Path(fig_dir) / filename
     logging.info('Saving img to %s', path)
-    with open(path, mode='wb') as f:
-        Image.fromarray(img).save(f, format="png", optimize=True)
+    # make tempfile then move
+    _, tmpfile = tempfile.mkstemp(dir=path.parent, prefix='zzztmp')
+    try:
+        tmp = Path(tmpfile)
+        with open(tmp, mode='wb') as f:
+            Image.fromarray(img).save(f, format="png", optimize=True)
+    except Exception:
+        tmp.unlink()
+        raise
+    else:
+        tmp.rename(path)
 
 
 def process_s3_file(bucket, key):
