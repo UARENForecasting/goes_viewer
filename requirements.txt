@@ -1,10 +1,14 @@
 xarray
-# netcdf4
 h5netcdf
 s3fs
 numpy
 pillow
 pyproj
 pyresample
+pytz
 bokeh
 boto3
+requests
+croniter
+click
+sentry-sdk

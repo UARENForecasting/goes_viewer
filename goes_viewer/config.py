@@ -1,21 +1,24 @@
 import json
 import os
-from pathlib import Path
-
 
 RED = "#AB0520"
 BLUE = "#0C234B"
-S3_PREFIX = os.getenv("GV_S3_PREFIX", "ABI-L2-MCMIPF")
+S3_PREFIX = os.getenv("GV_S3_PREFIX", "ABI-L2-MCMIPC")
+SQS_URL = os.getenv("GV_SQS_URL", None)
+SAVE_BUCKET = os.getenv("GV_SAVE_BUCKET", "")
 CONTRAST = int(os.getenv("GV_CONTRAST", 105))
-TILE_SOURCE = os.getenv(
-    "GV_TILE_SOURCE", "https://stamen-tiles.a.ssl.fastly.net/toner-lite"
-)
-LON_LIMITS = [float(s) for s in os.getenv("GV_LON_LIMITS", "-116,-108").split(",")]
+TILE_SOURCE = os.getenv("GV_TILE_SOURCE",
+                        "https://stamen-tiles.a.ssl.fastly.net/toner-lite")
+LON_LIMITS = [
+    float(s) for s in os.getenv("GV_LON_LIMITS", "-115,-103").split(",")
+]
 LAT_LIMITS = [float(s) for s in os.getenv("GV_LAT_LIMITS", "31,37").split(",")]
-FILENAME = os.getenv("GV_FILE_NAME", "satellite_viewer.html")
-API_URL = os.getenv("GV_API_URL")
-API_USER = os.getenv("GV_API_USER")
-API_PASS = os.getenv("GV_API_PASSWORD")
+FILENAME = os.getenv("GV_FILE_NAME", "index.html")
 FILTERS = json.loads(os.getenv("GV_FILTERS", '{"Type": "ghi"}'))
-BASE_DIR = Path(os.getenv("GV_BASE_DIR", "figs"))
-PLAY_SPEED = os.getenv("GV_PLAY_SPEED", 500)
+FIG_DIR = os.getenv('GV_FIG_DIR', 'figs/')
+PLAY_SPEED = os.getenv("GV_PLAY_SPEED", 300)
+PLAY_SPEED_INCR = os.getenv("GV_PLAY_SPEED_INCR", 100)
+RESTART_PAUSE = os.getenv('GV_RESTART_PAUSE', 1000)
+MAX_IMAGES = os.getenv("GV_MAX_IMAGES", 48)
+DATA_PARAMS = json.loads(os.getenv("GV_DATA_PARAMS", '{}'))
+SERVICE_AREA = os.getenv('GV_SERVICE_AREA', None)
