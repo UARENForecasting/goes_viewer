@@ -254,16 +254,26 @@ def create_bokeh_figure(
     """
     )
     change_speed_callback = CustomJS(
-        args=dict(slider=slider, play_buttons=play_buttons),
+        args=dict(slider=slider, play_buttons=play_buttons, pause=config.RESTART_PAUSE),
         code="""
+    var timeoutSet = false;
+    function fromstart(){
+        timeoutSet = false
+        if (play_buttons.active == 0){
+            slider.value = 0
+            slider.change.emit()
+        }
+    }
     function advance() {
         if (slider.value < slider.end) {
             slider.value += 1
-        } else {
-            slider.value = 0
+            slider.change.emit()
+        } else if (!timeoutSet){
+            setTimeout(fromstart, pause)
+            timeoutSet = true;
         }
-        slider.change.emit()
     }
+
     if (play_buttons.active == 0){
         var id = play_buttons._id
         clearInterval(id)
@@ -273,7 +283,7 @@ def create_bokeh_figure(
     """
     )
     play_callback = CustomJS(
-        args=dict(slider=slider, speed_source=speed_source),
+        args=dict(slider=slider, speed_source=speed_source, pause=config.RESTART_PAUSE),
         code="""
     function stop() {
         var id = cb_obj._id
@@ -281,20 +291,28 @@ def create_bokeh_figure(
         cb_obj.active = 1
     }
 
+    var timeoutSet = false;
+    function fromstart(){
+        timeoutSet = false
+        if (cb_obj.active == 0){
+            slider.value = 0
+            slider.change.emit()
+        }
+    }
     function advance() {
         if (slider.value < slider.end) {
             slider.value += 1
-        } else {
-            slider.value = 0
+            slider.change.emit()
+        } else if (!timeoutSet){
+            setTimeout(fromstart, pause)
+            timeoutSet = true;
         }
-        slider.change.emit()
     }
 
     function start() {
         var id = setInterval(advance, speed_source.data['speed'][0])
         cb_obj._id = id
     }
-
     if (cb_obj.active == 0) {
         start()
     } else if (cb_obj.active == 2) {
