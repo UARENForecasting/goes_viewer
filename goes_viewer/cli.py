@@ -220,6 +220,21 @@ def process_files(sqs_url, save_directory, cron, cron_tz):
     )
 
 
+def remove(save_directory, keep_from):
+    latest = dt.datetime.now() - dt.timedelta(hours=keep_from)
+    for file_ in save_directory.glob('*.png'):
+        try:
+            file_time = dt.datetime.strptime(
+                file_.stem.split('_')[1], '%Y-%m-%dT%H:%M:%SZ')
+        except ValueError:
+            logging.warning('File %s has an invalid time format', file_)
+            continue
+        else:
+            if file_time < latest:
+                logging.info('Removing file %s', file_)
+                file_.unlink()
+
+
 @cli.command()
 @verbose
 @schedule_options
@@ -236,19 +251,6 @@ def remove_old_files(save_directory, keep_from, cron, cron_tz):
     """
     Remove old files in SAVE_DIRECTORY
     """
-    def remove(save_directory, keep_from):
-        latest = dt.datetime.now() - dt.timedelta(hours=keep_from)
-        for file_ in save_directory.glob('*.png'):
-            try:
-                file_time = dt.datetime.strptime(
-                    file_.stem.split('_')[1], '%Y-%m-%dT%H:%M:%SZ')
-            except ValueError:
-                logging.warning('File %s has an invalid time format', file_)
-                continue
-            else:
-                if file_time < latest:
-                    logging.info('Removing file %s', file_)
-                    file_.unlink()
     run_loop(remove, save_directory, keep_from, cron=cron, cron_tz=cron_tz)
 
 
