@@ -28,6 +28,7 @@ FROM amacneil/dbmate:v1.11.0 as dbmate
 # Install goes_viewer from the built wheel
 FROM basepython
 COPY --from=wheelbuild /src/dist/*.whl /opt/app-root/.
+COPY --from=wheelbuild /src/static /opt/app-root/static
 RUN pip install --no-cache-dir /opt/app-root/*.whl
 
 EXPOSE 8080
