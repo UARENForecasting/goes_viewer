@@ -1,0 +1,24 @@
+name: buildandpush
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  imagebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to registry
+        uses: docker/login-action@v1
+        with:
+          registry: harbor.x.energy.arizona.edu
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags:
+  
