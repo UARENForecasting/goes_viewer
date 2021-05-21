@@ -56,7 +56,7 @@ jobs:
           https://api.github.com/repos/uarenforecasting/fx-deploy/actions/workflows/update-image.yml/dispatches \
           -d ${DATA}
         env:
-          NAME: goesviewer-latest
+          NAME: goesviewer
           DIGEST: ${{ steps.build.outputs.digest }}
           USERNAME: ${{ secrets.DEPLOY_USERNAME }}
           PASSWORD: ${{ secrets.DEPLOY_TOKEN }}
