@@ -107,4 +107,5 @@ def update_existing_file(metadata_file, base_url, auth, params, timeout):
         p.unlink()
         raise ()
     else:
+        p.chmod(0o644)
         p.rename(metadata_file)
