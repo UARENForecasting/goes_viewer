@@ -208,6 +208,7 @@ def save_local(img, filename, fig_dir):
         tmp.unlink()
         raise
     else:
+        tmp.chmod(0o644)
         tmp.rename(path)
 
 
