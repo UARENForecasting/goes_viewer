@@ -8,7 +8,7 @@ SQS_URL = os.getenv("GV_SQS_URL", None)
 SAVE_BUCKET = os.getenv("GV_SAVE_BUCKET", "")
 CONTRAST = int(os.getenv("GV_CONTRAST", 105))
 TILE_SOURCE = os.getenv("GV_TILE_SOURCE",
-                        "https://stamen-tiles.a.ssl.fastly.net/toner-lite")
+                        "https://tiles.stadiamaps.com/tiles/stamen_toner_lite")
 LON_LIMITS = [
     float(s) for s in os.getenv("GV_LON_LIMITS", "-115,-103").split(",")
 ]
