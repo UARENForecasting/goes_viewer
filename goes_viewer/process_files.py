@@ -213,7 +213,8 @@ def save_local(img, filename, fig_dir):
 
 
 def process_s3_file(bucket, key):
-    fs = s3fs.S3FileSystem(anon=True)
+    fs = s3fs.S3FileSystem(anon=True,
+                           client_kwargs={'region_name': 'us-east-1'})
     path = f'{bucket}/{key}'
     if not fs.exists(path):
         logging.warning('%s does not yet exist', path)
