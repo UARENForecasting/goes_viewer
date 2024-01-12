@@ -193,7 +193,9 @@ def get_most_recent_s3_object(bucket_name, prefix, fig_dir):
     full_prefix = modify_prefix(prefix)
     page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=full_prefix)
     page = [x for x in page_iterator][-1]
-    if page is None:
+    try:
+        x = page['Contents']
+    except KeyError:
         logging.info("No files created in bucket yet, checking previous folder.")
         full_prefix = modify_prefix(prefix, prev=True)
         page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=full_prefix)
@@ -204,7 +206,6 @@ def get_most_recent_s3_object(bucket_name, prefix, fig_dir):
 
     # Check that file hasn't already been accessed. Only check 
     # 3 most recent files
-    # TODO: Sort the listdir, right now it grabs an arbitrary order
     check_itr = 0
     all_imgs = os.listdir(fig_dir)
     all_imgs.sort()
