@@ -206,7 +206,9 @@ def get_most_recent_s3_object(bucket_name, prefix, fig_dir):
     # 3 most recent files
     # TODO: Sort the listdir, right now it grabs an arbitrary order
     check_itr = 0
-    for img_saved in os.listdir(fig_dir):
+    all_imgs = os.listdir(fig_dir)
+    all_imgs.sort()
+    for img_saved in all_imgs[::-1]:
         check_itr += 1
         if check_itr > 2:
             break
@@ -244,8 +246,6 @@ def main(bucket_name, prefix, fig_dir):
         bucket, key, last_modified = get_most_recent_s3_object(bucket_name, prefix, fig_dir)
         img, filename = process_s3_file(bucket, key)
     except ValueError:
-        logging.info("Value error. Ending early.")
-        print("Value error in process_s3_file. Breaking.")
         return
     save_local(img, filename, fig_dir, last_modified)
 
