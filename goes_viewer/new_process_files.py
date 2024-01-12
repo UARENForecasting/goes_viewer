@@ -178,7 +178,7 @@ def save_local(img, filename, fig_dir, last_modified):
 def modify_prefix(base_prefix, prev=False):
     the_time = dt.datetime.utcnow()
     if prev:
-        the_time = the_time + dt.timedelta(hours=1)
+        the_time = the_time + dt.timedelta(hours=-1)
 
     current_year = the_time.year
     day_of_year = the_time.strftime('%j')
@@ -204,6 +204,7 @@ def get_most_recent_s3_object(bucket_name, prefix, fig_dir):
 
     # Check that file hasn't already been accessed. Only check 
     # 3 most recent files
+    # TODO: Sort the listdir, right now it grabs an arbitrary order
     check_itr = 0
     for img_saved in os.listdir(fig_dir):
         check_itr += 1
@@ -213,7 +214,7 @@ def get_most_recent_s3_object(bucket_name, prefix, fig_dir):
         with Image.open(filepath) as target_img:
             if target_img.text['last_modified'] == last_modified:
                 logging.info("File already processed. Sleeping.")
-                raise KeyError()
+                raise ValueError()
 
     return bucket_name, obj['Key'], last_modified
 
@@ -243,9 +244,8 @@ def main(bucket_name, prefix, fig_dir):
         bucket, key, last_modified = get_most_recent_s3_object(bucket_name, prefix, fig_dir)
         img, filename = process_s3_file(bucket, key)
     except ValueError:
+        logging.info("Value error. Ending early.")
         print("Value error in process_s3_file. Breaking.")
-        return
-    except KeyError:
         return
     save_local(img, filename, fig_dir, last_modified)
 
