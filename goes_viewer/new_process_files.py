@@ -1,16 +1,16 @@
 import boto3
+import datetime as dt
+import logging
 import numpy as np
+import os
+from pathlib import Path
 from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 from pyproj import CRS, transform
 import pyresample
 import s3fs
-import xarray as xr
-import datetime as dt
-import logging
-import os
-from pathlib import Path
 import tempfile
+import xarray as xr
 
 from goes_viewer.config import CONTRAST, S3_PREFIX
 from goes_viewer.constants import (
