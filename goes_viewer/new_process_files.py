@@ -249,13 +249,3 @@ def main(bucket_name, prefix, fig_dir):
     except ValueError:
         return
     save_local(img, filename, fig_dir, last_modified)
-
-
-if __name__ == "__main__":
-    bucket_name = 'noaa-goes16'
-    prefix = 'ABI-L2-MCMIPC'
-    fig_dir = '/home/ian/goes_stuff/figs_new/'
-    import time
-    start_time = time.time()
-    main(bucket_name, prefix, fig_dir)
-    print("--- %s seconds ---" % (time.time() - start_time))
