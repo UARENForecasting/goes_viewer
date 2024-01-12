@@ -220,6 +220,30 @@ def process_files(sqs_url, save_directory, cron, cron_tz):
     )
 
 
+@cli.command()
+@verbose
+@schedule_options
+@set_log_level
+@click.argument('bucket')
+@click.argument('filetype')
+@save_directory
+def process_files_new(bucket, filetype, save_directory, cron, cron_tz):
+    """
+    Process new files in SQS_URL and save the GeoColor images to SAVE_DIRECTORY
+    """
+    from goes_viewer.new_process_files import main
+
+    run_loop(
+        main,
+        bucket,
+        filetype,
+        save_directory,
+        cron=cron,
+        cron_tz=cron_tz
+    )
+
+
+
 def remove(save_directory, keep_from):
     latest = dt.datetime.now() - dt.timedelta(hours=keep_from)
     for file_ in save_directory.glob('*.png'):
