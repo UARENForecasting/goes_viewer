@@ -183,43 +183,56 @@ def modify_prefix(base_prefix, prev=False):
     current_year = the_time.year
     day_of_year = the_time.strftime('%j')
     current_hour = the_time.hour
+    if current_hour < 10:
+        current_hour = '0' + str(current_hour)
     
     return f'{base_prefix}/{current_year}/{day_of_year}/{current_hour}'
 
 
-def get_most_recent_s3_object(bucket_name, prefix, fig_dir):
+def check_and_save_recent_files(bucket_name, prefix, fig_dir):
+    logging.debug("=== Starting run ===")
     s3 = boto3.client('s3')
     paginator = s3.get_paginator("list_objects")
     full_prefix = modify_prefix(prefix)
     page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=full_prefix)
     page = [x for x in page_iterator][-1]
-    try:
-        x = page['Contents']
-    except KeyError:
-        logging.info("No files created in bucket yet, checking previous folder.")
+    while 'Contents' not in page.keys():
         full_prefix = modify_prefix(prefix, prev=True)
+        logging.debug(f"No files created in bucket yet, checking previous folder: {full_prefix}")
         page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=full_prefix)
         page = [x for x in page_iterator][-1]
-    obj = page['Contents'][-1]
-    last_modified = obj['LastModified']
-    last_modified = dt.datetime.strftime(last_modified, "%d/%m/%y-%H:%M:%S")
 
-    # Check that file hasn't already been accessed. Only check 
-    # 3 most recent files
-    check_itr = 0
-    all_imgs = os.listdir(fig_dir)
-    all_imgs.sort()
-    for img_saved in all_imgs[::-1]:
-        check_itr += 1
-        if check_itr > 2:
-            break
-        filepath = os.path.join(fig_dir, img_saved)
-        with Image.open(filepath) as target_img:
-            if target_img.text['last_modified'] == last_modified:
-                logging.info("File already processed. Sleeping.")
-                raise ValueError()
-
-    return bucket_name, obj['Key'], last_modified
+    for obj in page['Contents']:
+        already_saved = False
+        last_modified = obj['LastModified']
+        last_modified = dt.datetime.strftime(last_modified, "%d_%m_%y-%H:%M:%S")
+        logging.debug(f"Checking file: {obj['Key']}")
+        # Check that the file isn't being worked on 
+        if os.path.exists(os.path.join(fig_dir, last_modified + ".tmp")):
+            logging.debug("File being processed, skipping")
+            continue
+        tmp_file = open(os.path.join(fig_dir, last_modified + ".tmp"), 'w')
+        tmp_file.close()
+        # Check that file hasn't already been finished. Only check 
+        # 12 most recent files
+        check_itr = 0
+        all_imgs = os.listdir(fig_dir)
+        all_imgs.sort()
+        for img_saved in all_imgs[::-1]:
+            if '.png' not in img_saved:
+                continue
+            check_itr += 1
+            if check_itr > 12:
+                continue
+            filepath = os.path.join(fig_dir, img_saved)
+            with Image.open(filepath) as target_img:
+                if target_img.text['last_modified'] == last_modified:
+                    logging.debug(f"File already processed. Skipping.")
+                    already_saved = True
+        if not already_saved:
+            img, filename = process_s3_file(bucket_name, obj['Key'])
+            save_local(img, filename, fig_dir, last_modified)
+        os.remove(os.path.join(fig_dir, last_modified + ".tmp"))
 
 
 def process_s3_file(bucket, key):
@@ -230,11 +243,11 @@ def process_s3_file(bucket, key):
         logging.warning('%s does not yet exist', path)
         raise ValueError()
     logging.info(f"Processing file {path}")
-    remote_file = fs.open(path, mode='rb', fill_cache=True)
     if 'goes17' in bucket:
         corners = G17_CORNERS
     else:
         corners = G16_CORNERS
+    remote_file = fs.open(path, mode='rb', fill_cache=True)
     ds = open_file(remote_file, corners, 'h5netcdf')
     img = make_geocolor_image(ds)
     resample_params, shape = make_resample_params(ds, G17_CORNERS)
@@ -243,9 +256,5 @@ def process_s3_file(bucket, key):
 
 
 def main(bucket_name, prefix, fig_dir):
-    try:
-        bucket, key, last_modified = get_most_recent_s3_object(bucket_name, prefix, fig_dir)
-        img, filename = process_s3_file(bucket, key)
-    except ValueError:
-        return
-    save_local(img, filename, fig_dir, last_modified)
+    check_and_save_recent_files(bucket_name, prefix, fig_dir)
+    logging.debug("=== Run finished ===")
