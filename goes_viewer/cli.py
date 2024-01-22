@@ -201,7 +201,6 @@ save_directory = click.argument(
 
 @cli.command()
 @verbose
-@schedule_options
 @set_log_level
 @click.argument('bucket')
 @click.argument('filetype')
