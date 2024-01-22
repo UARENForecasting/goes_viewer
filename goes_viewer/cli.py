@@ -227,21 +227,13 @@ def process_files(sqs_url, save_directory, cron, cron_tz):
 @click.argument('bucket')
 @click.argument('filetype')
 @save_directory
-def process_files_new(bucket, filetype, save_directory, cron, cron_tz):
+def process_files_new(bucket, filetype, save_directory):
     """
     Process new files in SQS_URL and save the GeoColor images to SAVE_DIRECTORY
     """
     from goes_viewer.new_process_files import main
 
-    run_loop(
-        main,
-        bucket,
-        filetype,
-        save_directory,
-        cron=cron,
-        cron_tz=cron_tz
-    )
-
+    main(bucket, filetype, save_directory)
 
 
 def remove(save_directory, keep_from):
