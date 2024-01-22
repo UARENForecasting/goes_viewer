@@ -223,7 +223,7 @@ def check_and_save_recent_files(bucket_name, prefix, fig_dir):
                 continue
             check_itr += 1
             if check_itr > 12:
-                continue
+                break
             filepath = os.path.join(fig_dir, img_saved)
             with Image.open(filepath) as target_img:
                 if target_img.text['last_modified'] == last_modified:
