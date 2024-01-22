@@ -203,35 +203,14 @@ save_directory = click.argument(
 @verbose
 @schedule_options
 @set_log_level
-@click.argument('sqs_url')
-@save_directory
-def process_files(sqs_url, save_directory, cron, cron_tz):
-    """
-    Process new files in SQS_URL and save the GeoColor images to SAVE_DIRECTORY
-    """
-    from goes_viewer.process_files import get_process_and_save
-
-    run_loop(
-        get_process_and_save,
-        sqs_url,
-        save_directory,
-        cron=cron,
-        cron_tz=cron_tz
-    )
-
-
-@cli.command()
-@verbose
-@schedule_options
-@set_log_level
 @click.argument('bucket')
 @click.argument('filetype')
 @save_directory
-def process_files_new(bucket, filetype, save_directory):
+def process_files(bucket, filetype, save_directory):
     """
     Process new files in SQS_URL and save the GeoColor images to SAVE_DIRECTORY
     """
-    from goes_viewer.new_process_files import main
+    from goes_viewer.process_files import main
 
     main(bucket, filetype, save_directory)
 
