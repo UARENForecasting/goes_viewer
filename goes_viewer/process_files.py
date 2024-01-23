@@ -256,7 +256,7 @@ def check_and_save_recent_files(bucket_name, prefix, fig_dir):
     logging.debug("=== Run finished ===")
 
 
-def remove_old_files(save_directory, keep_from):
+def remove_old_files(save_directory, keep_from=24):
     latest = dt.datetime.now() - dt.timedelta(hours=keep_from)
     for file_ in save_directory.glob('*.png'):
         try:
