@@ -209,29 +209,13 @@ def process_files(bucket, filetype, save_directory):
     """
     Process new files in SQS_URL and save the GeoColor images to SAVE_DIRECTORY
     """
-    from goes_viewer.process_files import main
+    from goes_viewer.process_files import check_and_save_recent_files
 
-    main(bucket, filetype, save_directory)
-
-
-def remove(save_directory, keep_from):
-    latest = dt.datetime.now() - dt.timedelta(hours=keep_from)
-    for file_ in save_directory.glob('*.png'):
-        try:
-            file_time = dt.datetime.strptime(
-                file_.stem.split('_')[1], '%Y-%m-%dT%H:%M:%SZ')
-        except ValueError:
-            logging.warning('File %s has an invalid time format', file_)
-            continue
-        else:
-            if file_time < latest:
-                logging.info('Removing file %s', file_)
-                file_.unlink()
+    check_and_save_recent_files(bucket, filetype, save_directory)
 
 
 @cli.command()
 @verbose
-@schedule_options
 @set_log_level
 @save_directory
 @click.option(
@@ -241,11 +225,13 @@ def remove(save_directory, keep_from):
     help="Keep x hours of images",
     type=click.INT
 )
-def remove_old_files(save_directory, keep_from, cron, cron_tz):
+def remove_old_files(save_directory, keep_from):
     """
     Remove old files in SAVE_DIRECTORY
     """
-    run_loop(remove, save_directory, keep_from, cron=cron, cron_tz=cron_tz)
+    from goes_viewer.process_files import remove_old_files
+    
+    remove_old_files(remove, save_directory, keep_from)
 
 
 class JSONParamType(click.ParamType):

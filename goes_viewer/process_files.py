@@ -189,6 +189,26 @@ def modify_prefix(base_prefix, prev=False):
     return f'{base_prefix}/{current_year}/{day_of_year}/{current_hour}'
 
 
+def process_s3_file(bucket, key):
+    fs = s3fs.S3FileSystem(anon=True,
+                           client_kwargs={'region_name': 'us-east-1'})
+    path = f'{bucket}/{key}'
+    if not fs.exists(path):
+        logging.warning('%s does not yet exist', path)
+        raise ValueError()
+    logging.info(f"Processing file {path}")
+    if 'goes17' in bucket:
+        corners = G17_CORNERS
+    else:
+        corners = G16_CORNERS
+    remote_file = fs.open(path, mode='rb', fill_cache=True)
+    ds = open_file(remote_file, corners, 'h5netcdf')
+    img = make_geocolor_image(ds)
+    resample_params, shape = make_resample_params(ds, G17_CORNERS)
+    nimg = resample_image(resample_params, shape, img)
+    return nimg, make_img_filename(ds)
+
+
 def check_and_save_recent_files(bucket_name, prefix, fig_dir):
     logging.debug("=== Starting run ===")
     s3 = boto3.client('s3')
@@ -233,28 +253,19 @@ def check_and_save_recent_files(bucket_name, prefix, fig_dir):
             img, filename = process_s3_file(bucket_name, obj['Key'])
             save_local(img, filename, fig_dir, last_modified)
         os.remove(os.path.join(fig_dir, last_modified + ".tmp"))
-
-
-def process_s3_file(bucket, key):
-    fs = s3fs.S3FileSystem(anon=True,
-                           client_kwargs={'region_name': 'us-east-1'})
-    path = f'{bucket}/{key}'
-    if not fs.exists(path):
-        logging.warning('%s does not yet exist', path)
-        raise ValueError()
-    logging.info(f"Processing file {path}")
-    if 'goes17' in bucket:
-        corners = G17_CORNERS
-    else:
-        corners = G16_CORNERS
-    remote_file = fs.open(path, mode='rb', fill_cache=True)
-    ds = open_file(remote_file, corners, 'h5netcdf')
-    img = make_geocolor_image(ds)
-    resample_params, shape = make_resample_params(ds, G17_CORNERS)
-    nimg = resample_image(resample_params, shape, img)
-    return nimg, make_img_filename(ds)
-
-
-def main(bucket_name, prefix, fig_dir):
-    check_and_save_recent_files(bucket_name, prefix, fig_dir)
     logging.debug("=== Run finished ===")
+
+
+def remove_old_files(save_directory, keep_from):
+    latest = dt.datetime.now() - dt.timedelta(hours=keep_from)
+    for file_ in save_directory.glob('*.png'):
+        try:
+            file_time = dt.datetime.strptime(
+                file_.stem.split('_')[1], '%Y-%m-%dT%H:%M:%SZ')
+        except ValueError:
+            logging.warning('File %s has an invalid time format', file_)
+            continue
+        else:
+            if file_time < latest:
+                logging.info('Removing file %s', file_)
+                file_.unlink()
