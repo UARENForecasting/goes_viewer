@@ -230,8 +230,8 @@ def remove_old_files(save_directory, keep_from):
     Remove old files in SAVE_DIRECTORY
     """
     from goes_viewer.process_files import remove_old_files
-    
-    remove_old_files(remove, save_directory, keep_from)
+
+    remove_old_files(save_directory, keep_from)
 
 
 class JSONParamType(click.ParamType):
