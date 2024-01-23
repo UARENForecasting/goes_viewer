@@ -260,6 +260,8 @@ def remove_old_files(save_directory, keep_from):
     latest = dt.datetime.now() - dt.timedelta(hours=keep_from)
     for file_ in save_directory.glob('*.png'):
         try:
+            if '_' not in file_.stem:
+                raise ValueError
             file_time = dt.datetime.strptime(
                 file_.stem.split('_')[1], '%Y-%m-%dT%H:%M:%SZ')
         except ValueError:
