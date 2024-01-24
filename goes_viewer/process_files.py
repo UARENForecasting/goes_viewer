@@ -1,21 +1,16 @@
-from concurrent.futures import ThreadPoolExecutor
-import datetime as dt
-import json
-import logging
-from pathlib import Path
-import tempfile
-import time
-import threading
-
-
 import boto3
+import datetime as dt
+import logging
 import numpy as np
+import os
+from pathlib import Path
 from PIL import Image
+from PIL.PngImagePlugin import PngInfo
 from pyproj import CRS, transform
 import pyresample
 import s3fs
+import tempfile
 import xarray as xr
-
 
 from goes_viewer.config import CONTRAST, S3_PREFIX
 from goes_viewer.constants import (
@@ -160,50 +155,18 @@ def make_img_filename(ds):
     return f'{ds.platform_ID}_{date.strftime("%Y-%m-%dT%H:%M:%SZ")}.png'
 
 
-def get_s3_keys(bucket, timestamp=None, prefix="ABL-L2-MCMIPF"):
-    """
-    Generate the keys in an S3 bucket.
-
-    :param bucket: Name of the S3 bucket.
-    :param prefix: Only fetch keys that start with this prefix (optional).
-    """
-    s3 = boto3.client("s3")
-    kwargs = {"Bucket": bucket}
-
-    kwargs["Prefix"] = prefix
-    if timestamp is not None:
-        kwargs['Prefix'] += timestamp.strftime('%Y/%j/%H')
-
-    while True:
-        resp = s3.list_objects_v2(**kwargs)
-        if resp["KeyCount"] == 0:
-            break
-        for obj in resp["Contents"]:
-            key = obj["Key"]
-            if key.startswith(prefix):
-                yield key
-
-        try:
-            kwargs["ContinuationToken"] = resp["NextContinuationToken"]
-        except KeyError:
-            break
-
-
-def save_s3(img, filename, save_bucket):
-    fs = s3fs.S3FileSystem()
-    with fs.open(f'{save_bucket}/{filename}', mode='wb') as f:
-        Image.fromarray(img).save(f, format="png", optimize=True)
-
-
-def save_local(img, filename, fig_dir):
+def save_local(img, filename, fig_dir, last_modified):
     path = Path(fig_dir) / filename
-    logging.info('Saving img to %s', path)
+    logging.info(f'Saving img to {path}')
     # make tempfile then move
     _, tmpfile = tempfile.mkstemp(dir=path.parent, prefix='zzztmp')
     try:
+        metadata = PngInfo()
+        metadata.add_text("last_modified", last_modified)
         tmp = Path(tmpfile)
         with open(tmp, mode='wb') as f:
-            Image.fromarray(img).save(f, format="png", optimize=True)
+            Image.fromarray(img).save(f, format="png", optimize=True,
+                                      pnginfo=metadata)
     except Exception:
         tmp.unlink()
         raise
@@ -212,17 +175,33 @@ def save_local(img, filename, fig_dir):
         tmp.rename(path)
 
 
+def modify_prefix(base_prefix, prev=False):
+    the_time = dt.datetime.utcnow()
+    if prev:
+        the_time = the_time + dt.timedelta(hours=-1)
+
+    current_year = the_time.year
+    day_of_year = the_time.strftime('%j')
+    current_hour = the_time.hour
+    if current_hour < 10:
+        current_hour = '0' + str(current_hour)
+    
+    return f'{base_prefix}/{current_year}/{day_of_year}/{current_hour}'
+
+
 def process_s3_file(bucket, key):
-    fs = s3fs.S3FileSystem(anon=True)
+    fs = s3fs.S3FileSystem(anon=True,
+                           client_kwargs={'region_name': 'us-east-1'})
     path = f'{bucket}/{key}'
     if not fs.exists(path):
         logging.warning('%s does not yet exist', path)
         raise ValueError()
-    remote_file = fs.open(path, mode='rb', fill_cache=True)
+    logging.info(f"Processing file {path}")
     if 'goes17' in bucket:
         corners = G17_CORNERS
     else:
         corners = G16_CORNERS
+    remote_file = fs.open(path, mode='rb', fill_cache=True)
     ds = open_file(remote_file, corners, 'h5netcdf')
     img = make_geocolor_image(ds)
     resample_params, shape = make_resample_params(ds, G17_CORNERS)
@@ -230,44 +209,65 @@ def process_s3_file(bucket, key):
     return nimg, make_img_filename(ds)
 
 
-def _update_visibility(message, timeout, local):
-    while not local.stop:
-        message.change_visibility(VisibilityTimeout=timeout)
-        time.sleep(timeout / 2)
+def check_and_save_recent_files(bucket_name, prefix, fig_dir):
+    logging.debug("=== Starting run ===")
+    s3 = boto3.client('s3')
+    paginator = s3.get_paginator("list_objects")
+    full_prefix = modify_prefix(prefix)
+    page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=full_prefix)
+    page = [x for x in page_iterator][-1]
+    while 'Contents' not in page.keys():
+        full_prefix = modify_prefix(prefix, prev=True)
+        logging.debug(f"No files created in bucket yet, checking previous folder: {full_prefix}")
+        page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=full_prefix)
+        page = [x for x in page_iterator][-1]
+
+    for obj in page['Contents']:
+        already_saved = False
+        last_modified = obj['LastModified']
+        last_modified = dt.datetime.strftime(last_modified, "%d_%m_%y-%H:%M:%S")
+        logging.debug(f"Checking file: {obj['Key']}")
+        # Check that the file isn't being worked on 
+        if os.path.exists(os.path.join(fig_dir, last_modified + ".tmp")):
+            logging.debug("File being processed, skipping")
+            continue
+        tmp_file = open(os.path.join(fig_dir, last_modified + ".tmp"), 'w')
+        tmp_file.close()
+        # Check that file hasn't already been finished. Only check 
+        # 12 most recent files
+        check_itr = 0
+        all_imgs = os.listdir(fig_dir)
+        all_imgs.sort()
+        for img_saved in all_imgs[::-1]:
+            if '.png' not in img_saved:
+                continue
+            check_itr += 1
+            if check_itr > 12:
+                break
+            filepath = os.path.join(fig_dir, img_saved)
+            with Image.open(filepath) as target_img:
+                if target_img.text['last_modified'] == last_modified:
+                    logging.debug(f"File already processed. Skipping.")
+                    already_saved = True
+        if not already_saved:
+            img, filename = process_s3_file(bucket_name, obj['Key'])
+            save_local(img, filename, fig_dir, last_modified)
+        os.remove(os.path.join(fig_dir, last_modified + ".tmp"))
+    logging.debug("=== Run finished ===")
 
 
-def get_sqs_keys(sqs_url):
-    sqs = boto3.resource('sqs')
-    q = sqs.Queue(sqs_url)
-    messages = q.receive_messages(MaxNumberOfMessages=10)
-    while len(messages) > 0:
-        for message in messages:
-            # continuously update message visibility until processing
-            # is complete
-            with ThreadPoolExecutor() as exc:
-                data = threading.local()
-                data.stop = False
-                fut = exc.submit(_update_visibility, message, 30, data)
-                sns_msg = json.loads(message.body)
-                rec = json.loads(sns_msg['Message'])
-                for record in rec['Records']:
-                    bucket = record['s3']['bucket']['name']
-                    key = record['s3']['object']['key']
-                    if key.startswith(S3_PREFIX):
-                        yield (bucket, key)
-                data.stop = True
-                logging.debug('stopping message visibility update')
-                fut.cancel()
-            message.delete()
-            logging.debug("message deleted")
-        messages = q.receive_messages(MaxNumberOfMessages=10)
-
-
-def get_process_and_save(sqs_url, fig_dir):
-    for bucket, key in get_sqs_keys(sqs_url):
-        logging.info('Processing file from %s: %s', bucket, key)
+def remove_old_files(save_directory, keep_from=24):
+    latest = dt.datetime.now() - dt.timedelta(hours=keep_from)
+    for file_ in save_directory.glob('*.png'):
         try:
-            img, filename = process_s3_file(bucket, key)
+            if '_' not in file_.stem:
+                raise ValueError
+            file_time = dt.datetime.strptime(
+                file_.stem.split('_')[1], '%Y-%m-%dT%H:%M:%SZ')
         except ValueError:
-            break
-        save_local(img, filename, fig_dir)
+            logging.warning('File %s has an invalid time format', file_)
+            continue
+        else:
+            if file_time < latest:
+                logging.info('Removing file %s', file_)
+                file_.unlink()
