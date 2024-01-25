@@ -1,4 +1,5 @@
 import boto3
+import cv2 as cv
 import datetime as dt
 import logging
 import numpy as np
@@ -150,6 +151,28 @@ def resample_image(resample_params, shape, img_arr):
     return (np.ma.fix_invalid(out).filled(0) * 255).astype("uint8")
 
 
+def post_processing(image, kernel_size=(5,5), sigma=1.0, amount=1.25, threshold=0,
+                    contrast=1.2, brightness=10):
+    # Sharpen
+    """Return a sharpened version of the image, using an unsharp mask."""
+    blurred = cv.GaussianBlur(image, kernel_size, sigma)
+    sharpened = float(amount + 1) * image - float(amount) * blurred
+    sharpened = np.maximum(sharpened, np.zeros(sharpened.shape))
+    sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
+    sharpened = sharpened.round().astype(np.uint8)
+    if threshold > 0:
+        low_contrast_mask = np.absolute(image - blurred) < threshold
+        np.copyto(sharpened, image, where=low_contrast_mask)
+    # Brighten/Contrast
+    """
+    Adjusts contrast and brightness of an uint8 image.
+    contrast:   (0.0,  inf) with 1.0 leaving the contrast as is
+    brightness: [-255, 255] with 0 leaving the brightness as is
+    """
+    brightness += int(round(255*(1-contrast)/2))
+    return cv.addWeighted(sharpened, contrast, sharpened, 0, brightness)
+
+
 def make_img_filename(ds):
     date = dt.datetime.utcfromtimestamp(ds.t.item() / 1e9)
     return f'{ds.platform_ID}_{date.strftime("%Y-%m-%dT%H:%M:%SZ")}.png'
@@ -206,7 +229,8 @@ def process_s3_file(bucket, key):
     img = make_geocolor_image(ds)
     resample_params, shape = make_resample_params(ds, G17_CORNERS)
     nimg = resample_image(resample_params, shape, img)
-    return nimg, make_img_filename(ds)
+    final_img = post_processing(nimg)
+    return final_img, make_img_filename(ds)
 
 
 def check_and_save_recent_files(bucket_name, prefix, fig_dir):
