@@ -152,7 +152,7 @@ def resample_image(resample_params, shape, img_arr):
 
 
 def post_processing(image, kernel_size=(5,5), sigma=1.0, amount=1.25, threshold=0,
-                    contrast=1.2, brightness=10):
+                    contrast=1.2, brightness=25):
     # Sharpen
     """Return a sharpened version of the image, using an unsharp mask."""
     blurred = cv.GaussianBlur(image, kernel_size, sigma)
