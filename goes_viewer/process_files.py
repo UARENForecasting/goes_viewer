@@ -298,7 +298,3 @@ def remove_old_files(save_directory, keep_from=24):
             if file_time < latest:
                 logging.info('Removing file %s', file_)
                 file_.unlink()
-
-
-if __name__ == "__main__":
-    check_and_save_recent_files('noaa-goes16', 'ABI-L2-MCMIPC', '/home/ian/goes_stuff/figs/')
