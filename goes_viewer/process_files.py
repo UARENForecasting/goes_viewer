@@ -151,26 +151,29 @@ def resample_image(resample_params, shape, img_arr):
     return (np.ma.fix_invalid(out).filled(0) * 255).astype("uint8")
 
 
-def post_processing(image, kernel_size=(5,5), sigma=1.0, amount=1.25, threshold=0,
-                    contrast=1.2, brightness=25):
-    # Sharpen
-    """Return a sharpened version of the image, using an unsharp mask."""
-    blurred = cv.GaussianBlur(image, kernel_size, sigma)
-    sharpened = float(amount + 1) * image - float(amount) * blurred
-    sharpened = np.maximum(sharpened, np.zeros(sharpened.shape))
-    sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
-    sharpened = sharpened.round().astype(np.uint8)
-    if threshold > 0:
-        low_contrast_mask = np.absolute(image - blurred) < threshold
-        np.copyto(sharpened, image, where=low_contrast_mask)
+def post_processing(image, kernel_size=(9,9), sigma=1.0, amount=1.25, threshold=0,
+                    contrast=1.15, brightness=None):
     # Brighten/Contrast
     """
     Adjusts contrast and brightness of an uint8 image.
     contrast:   (0.0,  inf) with 1.0 leaving the contrast as is
     brightness: [-255, 255] with 0 leaving the brightness as is
     """
+    if brightness is None:
+        brightness = 160 - image.mean()
     brightness += int(round(255*(1-contrast)/2))
-    return cv.addWeighted(sharpened, contrast, sharpened, 0, brightness)
+    brightned = cv.addWeighted(image, contrast, image, 0, brightness)
+    # Sharpen
+    """Return a sharpened version of the image, using an unsharp mask."""
+    blurred = cv.GaussianBlur(brightned, kernel_size, sigma)
+    sharpened = float(amount + 1) * brightned - float(amount) * blurred
+    sharpened = np.maximum(sharpened, np.zeros(sharpened.shape))
+    sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
+    sharpened = sharpened.round().astype(np.uint8)
+    if threshold > 0:
+        low_contrast_mask = np.absolute(brightned - blurred) < threshold
+        np.copyto(sharpened, brightned, where=low_contrast_mask)
+    return sharpened
 
 
 def make_img_filename(ds):
@@ -199,7 +202,7 @@ def save_local(img, filename, fig_dir, last_modified):
 
 
 def modify_prefix(base_prefix, prev=False):
-    the_time = dt.datetime.utcnow()
+    the_time = dt.datetime.utcnow() + dt.timedelta(days=-135)
     if prev:
         the_time = the_time + dt.timedelta(hours=-1)
 
@@ -295,3 +298,7 @@ def remove_old_files(save_directory, keep_from=24):
             if file_time < latest:
                 logging.info('Removing file %s', file_)
                 file_.unlink()
+
+
+if __name__ == "__main__":
+    check_and_save_recent_files('noaa-goes16', 'ABI-L2-MCMIPC', '/home/ian/goes_stuff/figs/')
