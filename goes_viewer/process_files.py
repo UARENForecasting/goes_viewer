@@ -153,18 +153,17 @@ def resample_image(resample_params, shape, img_arr):
 
 def post_processing(image, kernel_size=(9,9), sigma=1.0, amount=1.25, threshold=0,
                     contrast=1.15, brightness=None):
-    # Brighten/Contrast
     """
-    Adjusts contrast and brightness of an uint8 image.
+    Adjusts contrast and brightness of an uint8 image, then sharpens.
     contrast:   (0.0,  inf) with 1.0 leaving the contrast as is
     brightness: [-255, 255] with 0 leaving the brightness as is
+    kernel_size: matrix size for gaussian blurring
     """
     if brightness is None:
         brightness = 160 - image.mean()
     brightness += int(round(255*(1-contrast)/2))
     brightned = cv.addWeighted(image, contrast, image, 0, brightness)
-    # Sharpen
-    """Return a sharpened version of the image, using an unsharp mask."""
+    # Use an unsharp mask with gaussian blurring
     blurred = cv.GaussianBlur(brightned, kernel_size, sigma)
     sharpened = float(amount + 1) * brightned - float(amount) * blurred
     sharpened = np.maximum(sharpened, np.zeros(sharpened.shape))
@@ -232,8 +231,8 @@ def process_s3_file(bucket, key):
     img = make_geocolor_image(ds)
     resample_params, shape = make_resample_params(ds, G17_CORNERS)
     nimg = resample_image(resample_params, shape, img)
-    final_img = post_processing(nimg)
-    return final_img, make_img_filename(ds)
+    #final_img = post_processing(nimg)
+    return nimg, make_img_filename(ds)
 
 
 def check_and_save_recent_files(bucket_name, prefix, fig_dir):
