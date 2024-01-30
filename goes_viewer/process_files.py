@@ -202,7 +202,7 @@ def save_local(img, filename, fig_dir, last_modified):
 
 
 def modify_prefix(base_prefix, prev=False):
-    the_time = dt.datetime.utcnow() + dt.timedelta(days=-135)
+    the_time = dt.datetime.utcnow()
     if prev:
         the_time = the_time + dt.timedelta(hours=-1)
 
