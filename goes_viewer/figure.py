@@ -344,7 +344,8 @@ def create_bokeh_figure(
                         source=geo_source,
                         fill_alpha=0,
                         line_alpha=0.9,
-                        line_color=config.BLUE)
+                        line_color=config.BLUE,
+                        name=service_area)
         map_fig.cross(x="x",
                     y="y",
                     size=12,
