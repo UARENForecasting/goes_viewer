@@ -203,17 +203,11 @@ def save_local(img, filename, fig_dir, last_modified):
 
 
 def modify_prefix(base_prefix, prev=False):
-    the_time = dt.datetime.utcnow()
+    the_time = dt.datetime.now(tz=dt.timezone(dt.timedelta(0)))
     if prev:
-        the_time = the_time + dt.timedelta(hours=-1)
-
-    current_year = the_time.year
-    day_of_year = the_time.strftime('%j')
-    current_hour = the_time.hour
-    if current_hour < 10:
-        current_hour = '0' + str(current_hour)
+        the_time = the_time - dt.timedelta(hours=1)
     
-    return f'{base_prefix}/{current_year}/{day_of_year}/{current_hour}'
+    return f"{base_prefix}/{the_time.year}/{the_time.strftime('%j')}/{the_time.hour:02}"
 
 
 def process_s3_file(bucket, key):
