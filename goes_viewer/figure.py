@@ -347,12 +347,12 @@ def create_bokeh_figure(
                         line_color=config.BLUE,
                         name=service_area)
         map_fig.cross(x="x",
-                    y="y",
-                    size=12,
-                    fill_alpha=0.9,
-                    source=pt_source,
-                    color=config.RED,
-                    name='sites')
+                      y="y",
+                      size=12,
+                      fill_alpha=0.9,
+                      source=pt_source,
+                      color=config.RED,
+                      name='sites')
     fig_source.js_on_change("tags", title_callback)
     slider.js_on_change("value", slider_callback)
     url_source.js_on_change("tags", newest_callback)
