@@ -263,10 +263,11 @@ def check_and_save_recent_files(bucket_name, prefix, fig_dir):
         last_modified = dt.datetime.strftime(last_modified, "%d_%m_%y-%H:%M:%S")
         logger.debug(f"Checking file: {obj['Key']}")
         # Check that the file isn't being worked on 
-        if os.path.exists(os.path.join(fig_dir, last_modified + ".tmp")):
+        lockfile_path = os.path.join(fig_dir, last_modified + ".tmp")
+        if os.path.exists(lockfile_path):
             logger.debug("File being processed, skipping")
             continue
-        tmp_file = open(os.path.join(fig_dir, last_modified + ".tmp"), 'w')
+        tmp_file = open(lockfile_path, 'w')
         tmp_file.close()
         # Check that file hasn't already been finished. Only check 
         # 12 most recent files
@@ -287,7 +288,7 @@ def check_and_save_recent_files(bucket_name, prefix, fig_dir):
         if not already_saved:
             img, filename = process_s3_file(bucket_name, obj['Key'])
             save_local(img, filename, fig_dir, last_modified)
-        os.remove(os.path.join(fig_dir, last_modified + ".tmp"))
+        os.remove(lockfile_path)
     logger.debug("=== Run finished ===")
 
 
