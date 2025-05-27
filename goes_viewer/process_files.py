@@ -183,6 +183,7 @@ def make_img_filename(ds):
 
 
 def save_local(img, filename, fig_dir, last_modified):
+    """Save the goesviewer image, and add metadata text with last modified timestamp."""
     path = Path(fig_dir) / filename
     logger.info(f'Saving img to {path}')
     # make tempfile then move
@@ -203,6 +204,7 @@ def save_local(img, filename, fig_dir, last_modified):
 
 
 def modify_prefix(base_prefix, prev=False):
+    """Append the current time to the base S3 bucket prefix to get the latest data."""
     the_time = dt.datetime.now(tz=dt.timezone(dt.timedelta(0)))
     if prev:
         the_time = the_time - dt.timedelta(hours=1)
@@ -211,6 +213,18 @@ def modify_prefix(base_prefix, prev=False):
 
 
 def process_s3_file(bucket, key):
+    """Pull the noaa goes file from AWS, reshape, update contrast, and return to save as png.
+    
+    Parameters
+    ----------
+    bucket: str, The S3 bucket that the data is saved at. Typically "noaa-goes19"
+    key: The datatype to pull from the bucket. We use "ABI-L2-MCMIPC"
+
+    Returns
+    -------
+    final_img: np.array of the image data
+    filename: name to save the file as, pulled from data
+    """
     path = f'{bucket}/{key}'
     logger.info(f"Processing file {path}")
     corners = GOES_CORNERS
