@@ -22,6 +22,7 @@ from goes_viewer.constants import (
 )
 
 TEMP_STORAGE = os.getenv("TEMP_FILE", "outputs/temp.nc")
+logger = logging.getLogger(__name__)
 
 
 def open_file(remote_file, corners):
@@ -183,7 +184,7 @@ def make_img_filename(ds):
 
 def save_local(img, filename, fig_dir, last_modified):
     path = Path(fig_dir) / filename
-    logging.info(f'Saving img to {path}')
+    logger.info(f'Saving img to {path}')
     # make tempfile then move
     _, tmpfile = tempfile.mkstemp(dir=path.parent, prefix='zzztmp')
     try:
@@ -217,7 +218,7 @@ def modify_prefix(base_prefix, prev=False):
 
 def process_s3_file(bucket, key):
     path = f'{bucket}/{key}'
-    logging.info(f"Processing file {path}")
+    logger.info(f"Processing file {path}")
     corners = GOES_CORNERS
     # Example of why full_path needs to be made manually:
     # https://noaa-goes18.s3.amazonaws.com/ABI-L2-MCMIPC/2025/143/19/OR_ABI-L2-MCMIPC-M6_G18_s20251431926191_e20251431928564_c20251431929241.nc
@@ -244,7 +245,7 @@ def process_s3_file(bucket, key):
 
 
 def check_and_save_recent_files(bucket_name, prefix, fig_dir):
-    logging.debug("=== Starting run ===")
+    logger.debug("=== Starting run ===")
     s3 = boto3.client('s3')
     paginator = s3.get_paginator("list_objects")
     full_prefix = modify_prefix(prefix)
@@ -252,7 +253,7 @@ def check_and_save_recent_files(bucket_name, prefix, fig_dir):
     page = [x for x in page_iterator][-1]
     while 'Contents' not in page.keys():
         full_prefix = modify_prefix(prefix, prev=True)
-        logging.debug(f"No files created in bucket yet, checking previous folder: {full_prefix}")
+        logger.debug(f"No files created in bucket yet, checking previous folder: {full_prefix}")
         page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=full_prefix)
         page = [x for x in page_iterator][-1]
 
@@ -260,10 +261,10 @@ def check_and_save_recent_files(bucket_name, prefix, fig_dir):
         already_saved = False
         last_modified = obj['LastModified']
         last_modified = dt.datetime.strftime(last_modified, "%d_%m_%y-%H:%M:%S")
-        logging.debug(f"Checking file: {obj['Key']}")
+        logger.debug(f"Checking file: {obj['Key']}")
         # Check that the file isn't being worked on 
         if os.path.exists(os.path.join(fig_dir, last_modified + ".tmp")):
-            logging.debug("File being processed, skipping")
+            logger.debug("File being processed, skipping")
             continue
         tmp_file = open(os.path.join(fig_dir, last_modified + ".tmp"), 'w')
         tmp_file.close()
@@ -287,7 +288,7 @@ def check_and_save_recent_files(bucket_name, prefix, fig_dir):
             img, filename = process_s3_file(bucket_name, obj['Key'])
             save_local(img, filename, fig_dir, last_modified)
         os.remove(os.path.join(fig_dir, last_modified + ".tmp"))
-    logging.debug("=== Run finished ===")
+    logger.debug("=== Run finished ===")
 
 
 def remove_old_files(save_directory, keep_from=24):
@@ -299,9 +300,9 @@ def remove_old_files(save_directory, keep_from=24):
             file_time = dt.datetime.strptime(
                 file_.stem.split('_')[1], '%Y-%m-%dT%H:%M:%SZ')
         except ValueError:
-            logging.warning('File %s has an invalid time format', file_)
+            logger.warning('File %s has an invalid time format', file_)
             continue
         else:
             if file_time < latest:
-                logging.info('Removing file %s', file_)
+                logger.info('Removing file %s', file_)
                 file_.unlink()
