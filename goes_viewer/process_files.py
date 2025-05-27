@@ -9,15 +9,13 @@ from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 from pyproj import CRS, transform
 import pyresample
-import s3fs
 import tempfile
 import xarray as xr
 import requests
 
 from goes_viewer.config import CONTRAST, S3_PREFIX
 from goes_viewer.constants import (
-    G16_CORNERS,
-    G17_CORNERS,
+    GOES_CORNERS,
     WEB_MERCATOR,
     DX,
     DY,
@@ -176,8 +174,9 @@ def post_processing(image, kernel_size=(9,9), sigma=1.0, amount=1.25, threshold=
     return sharpened
 
 
-def make_img_filename(date, platform_id):
-    return f'{platform_id}_{date.strftime("%Y-%m-%dT%H:%M:%SZ")}.png'
+def make_img_filename(ds):
+    ds_date = dt.datetime.utcfromtimestamp(ds.t.item() / 1e9)
+    return f'{ds.platform_ID}_{ds_date.strftime("%Y-%m-%dT%H:%M:%SZ")}.png'
 
 
 def save_local(img, filename, fig_dir, last_modified):
@@ -215,61 +214,31 @@ def modify_prefix(base_prefix, prev=False):
 
 
 def process_s3_file(bucket, key):
-    fs = s3fs.S3FileSystem(anon=True, default_fill_cache=False,
-                           client_kwargs={'region_name': 'us-east-1'})
     path = f'{bucket}/{key}'
-    if not fs.exists(path):
-        logging.warning('%s does not yet exist', path)
-        raise ValueError()
     logging.info(f"Processing file {path}")
-    if 'goes17' in bucket:
-        corners = G17_CORNERS
-    else:
-        corners = G16_CORNERS
+    corners = GOES_CORNERS
+    # Example of why full_path needs to be made manually:
     # https://noaa-goes18.s3.amazonaws.com/ABI-L2-MCMIPC/2025/143/19/OR_ABI-L2-MCMIPC-M6_G18_s20251431926191_e20251431928564_c20251431929241.nc
     # noaa-goes18/ABI-L2-MCMIPC/2025/143/19/OR_ABI-L2-MCMIPC-M6_G18_s20251431936191_e20251431938564_c20251431939242.nc
     full_path = f"https://{bucket}.s3.amazonaws.com{path.split(bucket)[1]}"
     resp = requests.get(full_path)
+    resp.raise_for_status()
     with open("outputs/temp.nc", "wb") as file:
         file.write(resp.content)
     with open("outputs/temp.nc", "rb") as remote_file:
-        ds = xr.open_dataset(remote_file, engine='h5netcdf')
-        proj_info = ds.goes_imager_projection
-        proj4_params = {
-            "ellps": "WGS84",
-            "a": proj_info.semi_major_axis.item(),
-            "b": proj_info.semi_minor_axis.item(),
-            "rf": proj_info.inverse_flattening.item(),
-            "proj": "geos",
-            "lon_0": proj_info.longitude_of_projection_origin.item(),
-            "lat_0": 0.0,
-            "h": proj_info.perspective_point_height.item(),
-            "x_0": 0,
-            "y_0": 0,
-            "units": "m",
-            "sweep": proj_info.sweep_angle_axis,
-        }
-        crs = CRS.from_dict(proj4_params)
-        ds = ds.update(
-            {
-                "x": ds.x * proj_info.perspective_point_height,
-                "y": ds.y * proj_info.perspective_point_height,
-            }
-        ).assign_attrs(crs=crs, proj4_params=proj4_params)
-
-        bnds = transform(crs.geodetic_crs, crs, corners[:, 0], corners[:, 1])
-        xarg = np.nonzero(((ds.x >= bnds[0].min()) & (ds.x <= bnds[0].max())).values)[0]
-        yarg = np.nonzero(((ds.y >= bnds[1].min()) & (ds.y <= bnds[1].max())).values)[0]
-        ds = ds.isel(x=xarg, y=yarg)
-    
+        # Open with xarray
+        ds = open_file(remote_file, corners)
+        # Grab RGB from the file
         img = make_geocolor_image(ds)
-        resample_params, shape = make_resample_params(ds, G17_CORNERS)
-        nimg = resample_image(resample_params, shape, img)
-        final_img = post_processing(nimg)
-        platform_id = ds.platform_ID
-        ds_date = dt.datetime.utcfromtimestamp(ds.t.item() / 1e9)
+        # Resample and reshape image for AZ/NM
+        resample_params, shape = make_resample_params(ds, GOES_CORNERS)
+        resampled_img = resample_image(resample_params, shape, img)
+        # Sharpen and increase contrast for prettier picture
+        final_img = post_processing(resampled_img)
+        # Translate ds metadata to filename
+        filename = make_img_filename(ds)
     os.unlink("outputs/temp.nc")
-    return final_img, make_img_filename(ds_date, platform_id)
+    return final_img, filename
 
 
 def check_and_save_recent_files(bucket_name, prefix, fig_dir):
