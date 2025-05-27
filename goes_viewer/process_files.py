@@ -262,7 +262,7 @@ def check_and_save_recent_files(bucket_name, prefix, fig_dir):
         last_modified = obj['LastModified']
         last_modified = dt.datetime.strftime(last_modified, "%d_%m_%y-%H:%M:%S")
         logger.debug(f"Checking file: {obj['Key']}")
-        # Check that the file isn't being worked on 
+        # Check that the file isn't being worked on, if so go to the next
         lockfile_path = os.path.join(fig_dir, last_modified + ".tmp")
         if os.path.exists(lockfile_path):
             logger.debug("File being processed, skipping")
@@ -271,15 +271,10 @@ def check_and_save_recent_files(bucket_name, prefix, fig_dir):
         tmp_file.close()
         # Check that file hasn't already been finished. Only check 
         # 12 most recent files
-        check_itr = 0
-        all_imgs = os.listdir(fig_dir)
-        all_imgs.sort()
-        for img_saved in all_imgs[::-1]:
+        all_imgs = sorted(os.listdir(fig_dir))
+        for img_saved in all_imgs[::-1][:12]:
             if '.png' not in img_saved:
                 continue
-            check_itr += 1
-            if check_itr > 12:
-                break
             filepath = os.path.join(fig_dir, img_saved)
             with Image.open(filepath) as target_img:
                 if target_img.text['last_modified'] == last_modified:
