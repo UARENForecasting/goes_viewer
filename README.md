@@ -10,4 +10,4 @@ will generate a static index.html, but cannot access images in the /figs/ direct
 
 > goes-viewer process-files noaa-goes19 ABI-L2-MCMIPC /\<this directory>/figs/ -v
 
-will pull files from AWS and save them as png's. It requires an AWS access key configured.
+will pull files from AWS and save them as png's
