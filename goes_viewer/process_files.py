@@ -1,4 +1,6 @@
 import boto3
+from botocore import UNSIGNED
+from botocore.client import Config
 import cv2 as cv
 import datetime as dt
 import logging
@@ -254,7 +256,7 @@ def process_s3_file(bucket, key):
 
 def check_and_save_recent_files(bucket_name, prefix, fig_dir):
     logger.debug("=== Starting run ===")
-    s3 = boto3.client('s3')
+    s3 = boto3.client('s3', config=Config(signature_version=UNSIGNED))
     paginator = s3.get_paginator("list_objects")
     full_prefix = modify_prefix(prefix)
     page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=full_prefix)
