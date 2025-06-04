@@ -335,10 +335,8 @@ def create_bokeh_figure(
                       **img_args)
     if config.SERVICE_AREA is not None:
         service_areas = [config.SERVICE_AREA.upper()]
-        add_sites = True
     else:
-        service_areas = ["APS", "TEP", "SRP"]
-        add_sites = False
+        service_areas = []
     for service_area in service_areas:
         geo_source = GeoJSONDataSource(geojson=getattr(areas, service_area))
         map_fig.patches(xs='xs',
@@ -350,14 +348,13 @@ def create_bokeh_figure(
                         name=service_area)
         # Show service area for the public, but only do site
         # info if on the utility sub-page
-        if add_sites:
-            map_fig.cross(x="x",
-                          y="y",
-                          size=12,
-                          fill_alpha=0.9,
-                          source=pt_source,
-                          color=config.RED,
-                          name='sites')
+        map_fig.cross(x="x",
+                      y="y",
+                      size=12,
+                      fill_alpha=0.9,
+                      source=pt_source,
+                      color=config.RED,
+                      name='sites')
     fig_source.js_on_change("tags", title_callback)
     slider.js_on_change("value", slider_callback)
     url_source.js_on_change("tags", newest_callback)
