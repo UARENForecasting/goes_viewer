@@ -18,7 +18,7 @@ from jinja2 import Environment, PackageLoader
 from pyproj import transform
 
 from goes_viewer import config, areas
-from goes_viewer.constants import WEB_MERCATOR, G17_CORNERS, DX, DY
+from goes_viewer.constants import WEB_MERCATOR, DX, DY
 
 
 def compute_image_locations_ranges(corners, range_lon_limits,
