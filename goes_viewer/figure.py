@@ -18,7 +18,7 @@ from jinja2 import Environment, PackageLoader
 from pyproj import transform
 
 from goes_viewer import config, areas
-from goes_viewer.constants import WEB_MERCATOR, G17_CORNERS, DX, DY
+from goes_viewer.constants import WEB_MERCATOR, DX, DY, GOES_CORNERS
 
 
 def compute_image_locations_ranges(corners, range_lon_limits,
@@ -370,7 +370,7 @@ def create_bokeh_figure(
 
 
 def render_html(base_dir):
-    doc = create_bokeh_figure(G17_CORNERS, config.LON_LIMITS,
+    doc = create_bokeh_figure(GOES_CORNERS, config.LON_LIMITS,
                               config.LAT_LIMITS, config.FIG_DIR)
     env = Environment(loader=PackageLoader("goes_viewer", "templates"))
     template = env.get_template("index.html")

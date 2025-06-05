@@ -23,7 +23,7 @@ from goes_viewer.constants import (
     DY,
 )
 
-TEMP_STORAGE = os.getenv("TEMP_FILE", "outputs/temp.nc")
+TEMP_STORAGE = os.getenv("TEMP_FILE", "outputs/")
 logger = logging.getLogger(__name__)
 
 
@@ -236,9 +236,12 @@ def process_s3_file(bucket, key):
     full_path = f"https://{bucket}.s3.amazonaws.com{path.split(bucket)[1]}"
     resp = requests.get(full_path)
     resp.raise_for_status()
-    with open(TEMP_STORAGE, "wb") as file:
+    if not os.path.isdir(TEMP_STORAGE):
+        os.mkdir(TEMP_STORAGE)
+    filepath = os.path.join(TEMP_STORAGE, "temp.nc")
+    with open(filepath, "wb") as file:
         file.write(resp.content)
-    with open(TEMP_STORAGE, "rb") as remote_file:
+    with open(filepath, "rb") as remote_file:
         # Open with xarray
         ds = open_file(remote_file, corners)
         # Grab RGB from the file
@@ -250,7 +253,7 @@ def process_s3_file(bucket, key):
         final_img = post_processing(resampled_img)
         # Translate ds metadata to filename
         filename = make_img_filename(ds)
-    os.unlink(TEMP_STORAGE)
+    os.unlink(filepath)
     return final_img, filename
 
 
