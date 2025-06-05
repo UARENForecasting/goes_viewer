@@ -236,6 +236,8 @@ def process_s3_file(bucket, key):
     full_path = f"https://{bucket}.s3.amazonaws.com{path.split(bucket)[1]}"
     resp = requests.get(full_path)
     resp.raise_for_status()
+    if not os.path.isdir(TEMP_STORAGE):
+        os.mkdir(TEMP_STORAGE)
     with open(TEMP_STORAGE, "wb") as file:
         file.write(resp.content)
     with open(TEMP_STORAGE, "rb") as remote_file:
