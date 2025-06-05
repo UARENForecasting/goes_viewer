@@ -6,3 +6,4 @@ from importlib import resources
 TEP = resources.read_text(__name__, 'tep.json')
 APS = resources.read_text(__name__, 'aps.json')
 PNM = resources.read_text(__name__, 'pnm.json')
+SRP = resources.read_text(__name__, 'srp.json')

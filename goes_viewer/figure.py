@@ -90,7 +90,7 @@ def create_bokeh_figure(
     map_fig.add_tools(hover)
     map_fig.xaxis.axis_label = (
         "Data from https://registry.opendata.aws/noaa-goes/. Map tiles from Stamen Design. "  # NOQA
-        "Plot generated with Bokeh by UA HAS Renewable Power Forecasting Group."
+        "Plot generated with Bokeh by UA Power Forecasting Group."
     )
     map_fig.xaxis.axis_label_text_font_size = "7pt"
     map_fig.xaxis.axis_line_alpha = 0
@@ -334,20 +334,27 @@ def create_bokeh_figure(
                       source=fig_source,
                       **img_args)
     if config.SERVICE_AREA is not None:
-        geo_source = GeoJSONDataSource(geojson=getattr(areas, config.SERVICE_AREA.upper()))
+        service_areas = [config.SERVICE_AREA.upper()]
+    else:
+        service_areas = []
+    for service_area in service_areas:
+        geo_source = GeoJSONDataSource(geojson=getattr(areas, service_area))
         map_fig.patches(xs='xs',
                         ys='ys',
                         source=geo_source,
                         fill_alpha=0,
                         line_alpha=0.9,
-                        line_color=config.BLUE)
-    map_fig.cross(x="x",
-                  y="y",
-                  size=12,
-                  fill_alpha=0.9,
-                  source=pt_source,
-                  color=config.RED,
-                  name='sites')
+                        line_color=config.BLUE,
+                        name=service_area)
+        # Show service area for the public, but only do site
+        # info if on the utility sub-page
+        map_fig.cross(x="x",
+                      y="y",
+                      size=12,
+                      fill_alpha=0.9,
+                      source=pt_source,
+                      color=config.RED,
+                      name='sites')
     fig_source.js_on_change("tags", title_callback)
     slider.js_on_change("value", slider_callback)
     url_source.js_on_change("tags", newest_callback)

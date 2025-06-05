@@ -1,4 +1,6 @@
 import boto3
+from botocore import UNSIGNED
+from botocore.client import Config
 import cv2 as cv
 import datetime as dt
 import logging
@@ -9,22 +11,24 @@ from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 from pyproj import CRS, transform
 import pyresample
-import s3fs
 import tempfile
 import xarray as xr
+import requests
 
-from goes_viewer.config import CONTRAST, S3_PREFIX
+from goes_viewer.config import CONTRAST
 from goes_viewer.constants import (
-    G16_CORNERS,
-    G17_CORNERS,
+    GOES_CORNERS,
     WEB_MERCATOR,
     DX,
     DY,
 )
 
+TEMP_STORAGE = os.getenv("TEMP_FILE", "outputs/temp.nc")
+logger = logging.getLogger(__name__)
 
-def open_file(path, corners, engine='h5netcdf'):
-    ds = xr.open_dataset(path, engine=engine)
+
+def open_file(remote_file, corners):
+    ds = xr.open_dataset(remote_file, engine='h5netcdf')
     proj_info = ds.goes_imager_projection
     proj4_params = {
         "ellps": "WGS84",
@@ -176,13 +180,14 @@ def post_processing(image, kernel_size=(9,9), sigma=1.0, amount=1.25, threshold=
 
 
 def make_img_filename(ds):
-    date = dt.datetime.utcfromtimestamp(ds.t.item() / 1e9)
-    return f'{ds.platform_ID}_{date.strftime("%Y-%m-%dT%H:%M:%SZ")}.png'
+    ds_date = dt.datetime.utcfromtimestamp(ds.t.item() / 1e9)
+    return f'{ds.platform_ID}_{ds_date.strftime("%Y-%m-%dT%H:%M:%SZ")}.png'
 
 
 def save_local(img, filename, fig_dir, last_modified):
+    """Save the goesviewer image, and add metadata text with last modified timestamp."""
     path = Path(fig_dir) / filename
-    logging.info(f'Saving img to {path}')
+    logger.info(f'Saving img to {path}')
     # make tempfile then move
     _, tmpfile = tempfile.mkstemp(dir=path.parent, prefix='zzztmp')
     try:
@@ -201,50 +206,64 @@ def save_local(img, filename, fig_dir, last_modified):
 
 
 def modify_prefix(base_prefix, prev=False):
-    the_time = dt.datetime.utcnow()
+    """Append the current time to the base S3 bucket prefix to get the latest data."""
+    the_time = dt.datetime.now(tz=dt.timezone(dt.timedelta(0)))
     if prev:
-        the_time = the_time + dt.timedelta(hours=-1)
-
-    current_year = the_time.year
-    day_of_year = the_time.strftime('%j')
-    current_hour = the_time.hour
-    if current_hour < 10:
-        current_hour = '0' + str(current_hour)
+        the_time = the_time - dt.timedelta(hours=1)
     
-    return f'{base_prefix}/{current_year}/{day_of_year}/{current_hour}'
+    return f"{base_prefix}/{the_time.year}/{the_time.strftime('%j')}/{the_time.hour:02}"
 
 
 def process_s3_file(bucket, key):
-    fs = s3fs.S3FileSystem(anon=True,
-                           client_kwargs={'region_name': 'us-east-1'})
+    """Pull the noaa goes file from AWS, reshape, update contrast, and return to save as png.
+    
+    Parameters
+    ----------
+    bucket: str, The S3 bucket that the data is saved at. Typically "noaa-goes19"
+    key: The datatype to pull from the bucket. We use "ABI-L2-MCMIPC"
+
+    Returns
+    -------
+    final_img: np.array of the image data
+    filename: name to save the file as, pulled from data
+    """
     path = f'{bucket}/{key}'
-    if not fs.exists(path):
-        logging.warning('%s does not yet exist', path)
-        raise ValueError()
-    logging.info(f"Processing file {path}")
-    if 'goes17' in bucket:
-        corners = G17_CORNERS
-    else:
-        corners = G16_CORNERS
-    remote_file = fs.open(path, mode='rb', fill_cache=True)
-    ds = open_file(remote_file, corners, 'h5netcdf')
-    img = make_geocolor_image(ds)
-    resample_params, shape = make_resample_params(ds, G17_CORNERS)
-    nimg = resample_image(resample_params, shape, img)
-    final_img = post_processing(nimg)
-    return final_img, make_img_filename(ds)
+    logger.info(f"Processing file {path}")
+    corners = GOES_CORNERS
+    # Example of why full_path needs to be made manually:
+    # https://noaa-goes18.s3.amazonaws.com/ABI-L2-MCMIPC/2025/143/19/OR_ABI-L2-MCMIPC-M6_G18_s20251431926191_e20251431928564_c20251431929241.nc
+    # noaa-goes18/ABI-L2-MCMIPC/2025/143/19/OR_ABI-L2-MCMIPC-M6_G18_s20251431936191_e20251431938564_c20251431939242.nc
+    full_path = f"https://{bucket}.s3.amazonaws.com{path.split(bucket)[1]}"
+    resp = requests.get(full_path)
+    resp.raise_for_status()
+    with open(TEMP_STORAGE, "wb") as file:
+        file.write(resp.content)
+    with open(TEMP_STORAGE, "rb") as remote_file:
+        # Open with xarray
+        ds = open_file(remote_file, corners)
+        # Grab RGB from the file
+        img = make_geocolor_image(ds)
+        # Resample and reshape image for AZ/NM
+        resample_params, shape = make_resample_params(ds, GOES_CORNERS)
+        resampled_img = resample_image(resample_params, shape, img)
+        # Sharpen and increase contrast for prettier picture
+        final_img = post_processing(resampled_img)
+        # Translate ds metadata to filename
+        filename = make_img_filename(ds)
+    os.unlink(TEMP_STORAGE)
+    return final_img, filename
 
 
 def check_and_save_recent_files(bucket_name, prefix, fig_dir):
-    logging.debug("=== Starting run ===")
-    s3 = boto3.client('s3')
+    logger.debug("=== Starting run ===")
+    s3 = boto3.client('s3', config=Config(signature_version=UNSIGNED))
     paginator = s3.get_paginator("list_objects")
     full_prefix = modify_prefix(prefix)
     page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=full_prefix)
     page = [x for x in page_iterator][-1]
     while 'Contents' not in page.keys():
         full_prefix = modify_prefix(prefix, prev=True)
-        logging.debug(f"No files created in bucket yet, checking previous folder: {full_prefix}")
+        logger.debug(f"No files created in bucket yet, checking previous folder: {full_prefix}")
         page_iterator = paginator.paginate(Bucket=bucket_name, Prefix=full_prefix)
         page = [x for x in page_iterator][-1]
 
@@ -252,24 +271,20 @@ def check_and_save_recent_files(bucket_name, prefix, fig_dir):
         already_saved = False
         last_modified = obj['LastModified']
         last_modified = dt.datetime.strftime(last_modified, "%d_%m_%y-%H:%M:%S")
-        logging.debug(f"Checking file: {obj['Key']}")
-        # Check that the file isn't being worked on 
-        if os.path.exists(os.path.join(fig_dir, last_modified + ".tmp")):
-            logging.debug("File being processed, skipping")
+        logger.debug(f"Checking file: {obj['Key']}")
+        # Check that the file isn't being worked on, if so go to the next
+        lockfile_path = os.path.join(fig_dir, last_modified + ".tmp")
+        if os.path.exists(lockfile_path):
+            logger.debug("File being processed, skipping")
             continue
-        tmp_file = open(os.path.join(fig_dir, last_modified + ".tmp"), 'w')
+        tmp_file = open(lockfile_path, 'w')
         tmp_file.close()
         # Check that file hasn't already been finished. Only check 
         # 12 most recent files
-        check_itr = 0
-        all_imgs = os.listdir(fig_dir)
-        all_imgs.sort()
-        for img_saved in all_imgs[::-1]:
+        all_imgs = sorted(os.listdir(fig_dir))
+        for img_saved in all_imgs[::-1][:12]:
             if '.png' not in img_saved:
                 continue
-            check_itr += 1
-            if check_itr > 12:
-                break
             filepath = os.path.join(fig_dir, img_saved)
             with Image.open(filepath) as target_img:
                 if target_img.text['last_modified'] == last_modified:
@@ -278,8 +293,8 @@ def check_and_save_recent_files(bucket_name, prefix, fig_dir):
         if not already_saved:
             img, filename = process_s3_file(bucket_name, obj['Key'])
             save_local(img, filename, fig_dir, last_modified)
-        os.remove(os.path.join(fig_dir, last_modified + ".tmp"))
-    logging.debug("=== Run finished ===")
+        os.remove(lockfile_path)
+    logger.debug("=== Run finished ===")
 
 
 def remove_old_files(save_directory, keep_from=24):
@@ -291,9 +306,9 @@ def remove_old_files(save_directory, keep_from=24):
             file_time = dt.datetime.strptime(
                 file_.stem.split('_')[1], '%Y-%m-%dT%H:%M:%SZ')
         except ValueError:
-            logging.warning('File %s has an invalid time format', file_)
+            logger.warning('File %s has an invalid time format', file_)
             continue
         else:
             if file_time < latest:
-                logging.info('Removing file %s', file_)
+                logger.info('Removing file %s', file_)
                 file_.unlink()
